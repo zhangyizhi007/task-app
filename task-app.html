@@ -84,6 +84,28 @@ button{touch-action:manipulation;}
 .empty{text-align:center;padding:40px 20px;color:var(--ink3);font-size:14px;}
 .empty .icon{font-size:48px;margin-bottom:12px;}
 
+/* Alert banner */
+.alert-banner{flex-shrink:0;margin:0 16px 10px;padding:12px 14px;background:linear-gradient(135deg,#FEF2F2,#FEE2E2);
+  border:1px solid #FECACA;border-radius:var(--r-sm);display:flex;align-items:center;gap:10px;
+  font-size:13px;color:#991B1B;animation:shakeIn .5s ease;}
+.alert-banner .a-icon{font-size:20px;flex-shrink:0;}
+.alert-banner .a-body{flex:1;min-width:0;}
+.alert-banner .a-body b{display:block;font-size:14px;margin-bottom:2px;}
+.alert-banner .a-close{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#991B1B;flex-shrink:0;}
+@keyframes shakeIn{0%{transform:translateX(-6px);opacity:0}40%{transform:translateX(4px)}70%{transform:translateX(-2px)}100%{transform:translateX(0);opacity:1}}
+
+/* Reminder settings */
+.reminder-bar{flex-shrink:0;margin:0 16px 10px;display:flex;align-items:center;justify-content:space-between;
+  background:var(--card);border-radius:var(--r-sm);padding:10px 14px;box-shadow:var(--shadow);}
+.reminder-bar .r-label{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:6px;}
+.reminder-bar .r-label .r-icon{font-size:16px;}
+.switch{width:44px;height:26px;border-radius:99px;background:var(--ink3);position:relative;transition:background .25s;}
+.switch.on{background:var(--brand);}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .25s;}
+.switch.on::after{transform:translateX(18px);}
+
 /* FAB */
 .fab{position:absolute;right:20px;bottom:90px;width:56px;height:56px;border-radius:50%;
   background:var(--brand);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;
@@ -195,6 +217,15 @@ button{touch-action:manipulation;}
       <div class="progress-info"><span>完成进度</span><span class="num" id="prog-text">0/0</span></div>
       <div class="progress-bar"><i id="prog-bar" style="width:0%"></i></div>
     </div>
+    <div class="reminder-bar">
+      <div class="r-label"><span class="r-icon">🔔</span><span>到期前一天提醒</span></div>
+      <div class="switch on" id="reminder-switch" onclick="toggleReminder()"></div>
+    </div>
+    <div class="alert-banner" id="alert-banner" style="display:none;">
+      <span class="a-icon">⚠️</span>
+      <div class="a-body" id="alert-body"></div>
+      <button class="a-close" onclick="dismissAlert()">✕</button>
+    </div>
     <div class="tabs">
       <button class="tab active" data-filter="all" onclick="setFilter('all',this)">全部</button>
       <button class="tab" data-filter="pending" onclick="setFilter('pending',this)">待处理</button>
@@ -296,6 +327,8 @@ let categories = LS.get('categories', ['学习','生活','其他']);
 let currentFilter = 'all';
 let editingId = null;
 let editingCat = null;
+let reminderOn = LS.get('reminder_on', true);
+let alertDismissed = false;
 
 // Calendar state
 let calYear, calMonth;
@@ -308,8 +341,46 @@ function daysLeft(d){ if(!d)return Infinity; const now=new Date(); now.setHours(
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg;t.classList.add('show');
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1600); }
 
+// ========== Reminder ==========
+function toggleReminder(){
+  reminderOn=!reminderOn;
+  LS.set('reminder_on',reminderOn);
+  const sw=document.getElementById('reminder-switch');
+  sw.classList.toggle('on',reminderOn);
+  if(reminderOn){
+    checkDeadlineReminder();
+  }else{
+    dismissAlert();
+  }
+  toast(reminderOn?'提醒已开启':'提醒已关闭');
+}
+
+function dismissAlert(){
+  alertDismissed=true;
+  document.getElementById('alert-banner').style.display='none';
+}
+
+function checkDeadlineReminder(){
+  if(!reminderOn||alertDismissed) return;
+  const today=new Date();
+  const tomorrow=new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr=tomorrow.getFullYear()+'-'+String(tomorrow.getMonth()+1).padStart(2,'0')+'-'+String(tomorrow.getDate()).padStart(2,'0');
+
+  const dueTasks=tasks.filter(t=>!t.done&&t.deadline===tomorrowStr);
+  const banner=document.getElementById('alert-banner');
+  const body=document.getElementById('alert-body');
+
+  if(dueTasks.length>0){
+    const names=dueTasks.map(t=>esc(t.title)).join('、');
+    body.innerHTML=`<b>${dueTasks.length} 条任务明天到期</b>${names}`;
+    banner.style.display='flex';
+  }else{
+    banner.style.display='none';
+  }
+}
+
 // ========== Render ==========
-function renderAll(){ renderTasks(); renderCalendar(); renderCategories(); updateProgress(); }
+function renderAll(){ renderTasks(); renderCalendar(); renderCategories(); updateProgress(); checkDeadlineReminder(); }
 
 function updateProgress(){
   const total=tasks.length; const done=tasks.filter(t=>t.done).length;
@@ -596,9 +667,10 @@ function switchPage(page,btn){
 function closeModal(id){ document.getElementById(id).style.display='none'; editingId=null; editingCat=null; }
 
 // ========== Persist ==========
-function persist(){ LS.set('tasks',tasks); LS.set('categories',categories); }
+function persist(){ LS.set('tasks',tasks); LS.set('categories',categories); LS.set('reminder_on',reminderOn); }
 
 // ========== Init ==========
+document.getElementById('reminder-switch').classList.toggle('on',reminderOn);
 renderAll();
 </script>
 
@@ -611,11 +683,12 @@ renderAll();
     <p><b>3. 标记完成</b> — 点击任务左侧圆圈即可勾选/取消完成。</p>
     <p><b>4. 优先级</b> — 高🔴 / 中🟡 / 低🟢，任务卡片左侧显示对应色条。</p>
     <p><b>5. 截止预警</b> — 距离到期 ≤3 天的任务整卡红色边框高亮。</p>
-    <p><b>6. 筛选视图</b> — 顶部切换"全部 / 待处理 / 已完成"。</p>
-    <p><b>7. 日历视图</b> — 底部导航切换至"日历"，有任务的日期显示圆点，点击查看当天事项。</p>
-    <p><b>8. 分类管理</b> — 底部导航切换至"分类"，支持新增、编辑、删除分类。</p>
-    <p><b>9. 批量导入</b> — 顶部 📥 按钮，每行一条任务粘贴导入。</p>
-    <p><b>10. 数据持久化</b> — 所有数据存储在浏览器本地，关闭/刷新页面不丢失。</p>
+    <p><b>6. 到期提醒</b> — 开启后，任务到期前一天页面顶部弹出红色预警横幅。</p>
+    <p><b>7. 筛选视图</b> — 顶部切换"全部 / 待处理 / 已完成"。</p>
+    <p><b>8. 日历视图</b> — 底部导航切换至"日历"，有任务的日期显示圆点，点击查看当天事项。</p>
+    <p><b>9. 分类管理</b> — 底部导航切换至"分类"，支持新增、编辑、删除分类。</p>
+    <p><b>10. 批量导入</b> — 顶部 📥 按钮，每行一条任务粘贴导入。</p>
+    <p><b>11. 数据持久化</b> — 所有数据存储在浏览器本地，关闭/刷新页面不丢失。</p>
     <button onclick="closeTutorial()" style="margin-top:16px;width:100%;padding:12px;border-radius:99px;background:var(--brand);color:#fff;font-weight:600;font-size:15px;">知道了</button>
   </div>
 </div>
