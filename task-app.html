@@ -196,6 +196,15 @@ button{touch-action:manipulation;cursor:pointer;}
   opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;}
 .toast.show{opacity:1;}
 
+/* Check-in modal */
+.checkin-preview{width:100%;max-height:180px;object-fit:cover;border-radius:var(--r-sm);margin-top:8px;display:none;}
+.checkin-preview.show{display:block;}
+.checkin-upload{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px dashed var(--line);
+  border-radius:var(--r-sm);color:var(--ink3);font-size:14px;margin-top:4px;justify-content:center;}
+.checkin-upload:active{background:var(--bg);}
+.checkin-done-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;
+  border-radius:99px;background:#D1FAE5;color:#065F46;margin-left:6px;}
+
 /* Swipe delete */
 .task-card{overflow:hidden;}
 .task-card .swipe-bg{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red);
@@ -407,6 +416,27 @@ button{touch-action:manipulation;cursor:pointer;}
   </div>
 </div>
 
+<!-- Check-in modal -->
+<div id="modal-checkin" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-checkin')">
+  <div class="modal-sheet">
+    <h3>✅ 任务打卡</h3>
+    <p style="font-size:14px;color:var(--ink2);margin-bottom:12px;" id="checkin-task-title"></p>
+    <label>打卡备注</label>
+    <textarea id="checkin-note" placeholder="写点什么…" rows="2"></textarea>
+    <label>上传图片</label>
+    <div class="checkin-upload" onclick="document.getElementById('checkin-file').click()">
+      📷 点击上传图片（可选）
+    </div>
+    <input type="file" id="checkin-file" accept="image/*" style="display:none;" onchange="previewCheckinImage(this)">
+    <img id="checkin-preview" class="checkin-preview" src="" alt="">
+    <button id="checkin-remove-img" style="display:none;margin-top:6px;font-size:12px;color:var(--red);" onclick="removeCheckinImage()">移除图片</button>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeModal('modal-checkin')">取消</button>
+      <button class="btn-primary" onclick="confirmCheckin()">确认完成</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ========== Storage ==========
 const LS = {
@@ -520,10 +550,13 @@ function renderTasks(){
     const deadlineHtml=t.deadline
       ?`<span class="deadline${dl>3?' normal':''}">📅 ${fmtDate(t.deadline)}${dl<=3&&dl>=0?' ⚠️':''}</span>`
       :'';
+    const checkinBadge=t.done
+      ?(t.checkinImage?'<span class="checkin-done-badge">📷 已打卡</span>':(t.checkinNote?'<span class="checkin-done-badge">📝 已打卡</span>':''))
+      :'';
     return `<div class="${cls.join(' ')}" id="card-${t.id}">
       <div class="check${t.done?' done':''}" onclick="toggleDone('${t.id}')"></div>
-      <div class="body" onclick="openTask('${t.id}')">
-        <div class="title">${esc(t.title)}</div>
+      <div class="body" onclick="${t.done?`viewCheckin('${t.id}')`:`openTask('${t.id}')`}">
+        <div class="title">${esc(t.title)}${checkinBadge}</div>
         <div class="meta">
           <span class="tag cat">${esc(catLabel)}</span>
           <span class="tag ${prioClass}">${prioLabel}</span>
@@ -583,10 +616,99 @@ function delTask(id){
   persist(); renderAll(); toast('已删除');
 }
 
+let checkinTaskId = null;
+let checkinImageData = null;
+
 function toggleDone(id){
   const t=tasks.find(x=>x.id===id); if(!t) return;
-  t.done=!t.done; persist(); renderAll(); toast(t.done?'已完成':'已取消完成');
+  if(t.done){
+    // 取消完成
+    t.done=false; t.checkinNote=''; t.checkinImage='';
+    persist(); renderAll(); toast('已取消完成');
+    return;
+  }
+  // 弹出打卡弹窗
+  checkinTaskId=id;
+  checkinImageData=null;
+  document.getElementById('checkin-task-title').textContent=t.title;
+  document.getElementById('checkin-note').value=t.checkinNote||'';
+  document.getElementById('checkin-preview').classList.remove('show');
+  document.getElementById('checkin-preview').src='';
+  document.getElementById('checkin-remove-img').style.display='none';
+  document.getElementById('checkin-file').value='';
+  if(t.checkinImage){
+    checkinImageData=t.checkinImage;
+    document.getElementById('checkin-preview').src=t.checkinImage;
+    document.getElementById('checkin-preview').classList.add('show');
+    document.getElementById('checkin-remove-img').style.display='block';
+  }
+  document.getElementById('modal-checkin').style.display='flex';
 }
+
+function previewCheckinImage(input){
+  const file=input.files[0];
+  if(!file) return;
+  if(file.size>2*1024*1024){ toast('图片不能超过2MB'); input.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=function(e){
+    checkinImageData=e.target.result;
+    document.getElementById('checkin-preview').src=e.target.result;
+    document.getElementById('checkin-preview').classList.add('show');
+    document.getElementById('checkin-remove-img').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeCheckinImage(){
+  checkinImageData=null;
+  document.getElementById('checkin-preview').src='';
+  document.getElementById('checkin-preview').classList.remove('show');
+  document.getElementById('checkin-remove-img').style.display='none';
+  document.getElementById('checkin-file').value='';
+}
+
+function confirmCheckin(){
+  const t=tasks.find(x=>x.id===checkinTaskId); if(!t) return;
+  t.done=true;
+  t.checkinNote=document.getElementById('checkin-note').value.trim();
+  t.checkinImage=checkinImageData||'';
+  persist(); renderAll(); closeModal('modal-checkin');
+  toast('打卡完成 ✓');
+}
+
+// 查看打卡详情
+function viewCheckin(id){
+  const t=tasks.find(x=>x.id===id); if(!t||!t.done) return;
+  checkinTaskId=id;
+  document.getElementById('checkin-task-title').textContent=t.title;
+  document.getElementById('checkin-note').value=t.checkinNote||'';
+  document.getElementById('checkin-file').value='';
+  if(t.checkinImage){
+    checkinImageData=t.checkinImage;
+    document.getElementById('checkin-preview').src=t.checkinImage;
+    document.getElementById('checkin-preview').classList.add('show');
+    document.getElementById('checkin-remove-img').style.display='block';
+  }else{
+    checkinImageData=null;
+    document.getElementById('checkin-preview').classList.remove('show');
+    document.getElementById('checkin-preview').src='';
+    document.getElementById('checkin-remove-img').style.display='none';
+  }
+  // 隐藏确认按钮，显示关闭
+  document.querySelector('#modal-checkin .btn-row').style.display='none';
+  document.getElementById('modal-checkin').style.display='flex';
+  // 恢复按钮
+  setTimeout(()=>document.querySelector('#modal-checkin .btn-row').style.display='',500);
+}
+
+// 确保关闭弹窗时恢复按钮显示
+const origCloseCheckin=closeModal;
+closeModal=function(id){
+  document.getElementById(id).style.display='none';
+  if(id==='modal-task'){ editingId=null; }
+  if(id==='modal-cat'){ editingCat=null; }
+  if(id==='modal-checkin'){ checkinTaskId=null; document.querySelector('#modal-checkin .btn-row').style.display=''; }
+};
 
 // ========== Filter ==========
 function setFilter(f,btn){
