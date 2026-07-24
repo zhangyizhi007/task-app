@@ -430,6 +430,7 @@ let periodCycle = LS.get('period_cycle', 28);
 let periodDuration = LS.get('period_duration', 5);
 let periodSelect = { active:false, start:null, end:null };
 let pickMode = null; // 'start' | 'end' — 当前在选开始还是结束
+let periodCalYear = null, periodCalMonth = null; // 经期日历当前显示月份
 
 // ========== Helpers ==========
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -809,9 +810,12 @@ function renderPeriodPage(){
   const el=document.getElementById('period-wrap');
   const now=new Date(); const todayStr=dateStr(now);
 
+  // 初始化经期日历月份（首次进入或切换页面时）
+  if(periodCalYear===null){ periodCalYear=now.getFullYear(); periodCalMonth=now.getMonth(); }
+
   // 无记录时的空态
   if(!periods.length){
-    const calHtml=renderPeriodCal(now.getFullYear(),now.getMonth(),null,null,true);
+    const calHtml=renderPeriodCal(periodCalYear,periodCalMonth,null,null,true);
     el.innerHTML=calHtml+
       `<div style="text-align:center;color:var(--ink3);font-size:13px;padding:8px 0;">👆 点击上方「📅 开始」按钮，然后选择经期开始日期</div>`;
     return;
@@ -843,7 +847,7 @@ function renderPeriodPage(){
     </div>`;
   }).join('');
 
-  const calHtml=renderPeriodCal(now.getFullYear(),now.getMonth(),phases,periodSelect.active?periodSelect:null,false);
+  const calHtml=renderPeriodCal(periodCalYear,periodCalMonth,phases,periodSelect.active?periodSelect:null,false);
 
   el.innerHTML=`
     <div class="period-summary">
@@ -1048,6 +1052,7 @@ function confirmPeriodSelect(){} // 不再需要确认按钮
 function changePeriodMonth(year,month,delta){
   let m=month+delta; let y=year;
   if(m<0){ m=11; y--; } if(m>11){ m=0; y++; }
+  periodCalYear=y; periodCalMonth=m;
   renderPeriodPage();
 }
 
@@ -1156,8 +1161,8 @@ document.getElementById('period-wrap').addEventListener('click', function(e){
   if(a){
     const act=a.getAttribute('data-action');
     if(act==='cancel-select') cancelPeriodSelect();
-    else if(act==='prev-month'){ const now=new Date(); changePeriodMonth(now.getFullYear(),now.getMonth(),-1); }
-    else if(act==='next-month'){ const now=new Date(); changePeriodMonth(now.getFullYear(),now.getMonth(),1); }
+    else if(act==='prev-month'){ changePeriodMonth(periodCalYear,periodCalMonth,-1); }
+    else if(act==='next-month'){ changePeriodMonth(periodCalYear,periodCalMonth,1); }
     else if(act==='pick-start') startPickMode('start');
     else if(act==='pick-end') startPickMode('end');
     else if(act==='export-cal'){ const nx=a.getAttribute('data-next'); if(nx) exportPeriodToCalendar(nx); }
