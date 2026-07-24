@@ -1351,12 +1351,16 @@ function updateTaskHeaderTime(){
 // 获取天气
 function fetchWeather(){
   // 使用 wttr.in 免费天气 API，根据 IP 自动定位
-  fetch('https://wttr.in/?format=%C&lang=zh',{cache:'no-cache'})
+  // 加 5 秒超时，失败静默处理（不影响页面正常使用）
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),5000);
+  fetch('https://wttr.in/?format=%C&lang=zh',{cache:'no-cache',signal:ctrl.signal})
     .then(r=>r.text()).then(code=>{
+      clearTimeout(timer);
       const w=code.trim();
       if(w&&w.length<=4) weatherEmoji=w;
       updateTaskHeaderTime();
-    }).catch(()=>{});
+    }).catch(()=>{clearTimeout(timer);});
 }
 fetchWeather();
 updateTaskHeaderTime();
