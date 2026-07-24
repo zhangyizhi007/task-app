@@ -1,4 +1,8 @@
-# Ignore everything except task-app.html
+# Ignore everything except app files
 *
 !task-app.html
+!manifest.json
+!apple-touch-icon.png
+!favicon.png
+!icon-512.png
 !.gitignore

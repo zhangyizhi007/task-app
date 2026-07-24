@@ -1,0 +1,23 @@
+{
+  "name": "任务管理",
+  "short_name": "任务管理",
+  "description": "本地任务管理、经期追踪、日历提醒",
+  "start_url": "/task-app.html",
+  "display": "standalone",
+  "background_color": "#F5F6FA",
+  "theme_color": "#6366F1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
