@@ -209,6 +209,10 @@ button{touch-action:manipulation;cursor:pointer;}
   opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;}
 .toast.show{opacity:1;}
 
+/* Voice input */
+.voice-recording #voice-btn{background:#FEE2E2!important;animation:voicePulse 1s infinite;}
+@keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+
 /* Check-in modal */
 .checkin-preview{width:100%;max-height:180px;object-fit:cover;border-radius:var(--r-sm);margin-top:8px;display:none;}
 .checkin-preview.show{display:block;}
@@ -351,7 +355,10 @@ button{touch-action:manipulation;cursor:pointer;}
   <div class="modal-sheet">
     <h3 id="modal-task-title">新增任务</h3>
     <label>任务内容</label>
-    <input type="text" id="et-title" placeholder="输入任务内容…" maxlength="200">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" id="et-title" placeholder="输入任务内容…" maxlength="200" style="flex:1;">
+      <button type="button" id="voice-btn" style="flex-shrink:0;width:42px;height:42px;border-radius:50%;border:none;background:#FDF2F8;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="toggleVoiceInput()">🎙️</button>
+    </div>
     <label>备注</label>
     <textarea id="et-note" placeholder="可选备注…" rows="2"></textarea>
     <div class="row">
@@ -587,6 +594,67 @@ function renderTasks(){
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ========== Task CRUD ==========
+// ========== Voice Input ==========
+let voiceRecognition=null;
+let voiceRecording=false;
+
+function toggleVoiceInput(){
+  if(voiceRecording){
+    if(voiceRecognition) voiceRecognition.stop();
+    return;
+  }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast('当前浏览器不支持语音输入'); return; }
+
+  voiceRecognition=new SR();
+  voiceRecognition.lang='zh-CN';
+  voiceRecognition.continuous=false;
+  voiceRecognition.interimResults=true;
+
+  const input=document.getElementById('et-title');
+  const btn=document.getElementById('voice-btn');
+  const originalPlaceholder=input.placeholder;
+  let finalText='';
+
+  voiceRecognition.onstart=function(){
+    voiceRecording=true;
+    document.body.classList.add('voice-recording');
+    btn.textContent='🔴';
+    input.placeholder='正在聆听…请说话';
+    toast('🎙️ 正在聆听…');
+  };
+
+  voiceRecognition.onresult=function(e){
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal){
+        finalText+=e.results[i][0].transcript;
+      }else{
+        interim+=e.results[i][0].transcript;
+      }
+    }
+    input.value=finalText+interim;
+  };
+
+  voiceRecognition.onerror=function(e){
+    toast('语音识别失败：'+e.error);
+  };
+
+  voiceRecognition.onend=function(){
+    voiceRecording=false;
+    document.body.classList.remove('voice-recording');
+    btn.textContent='🎙️';
+    input.placeholder=originalPlaceholder;
+    if(finalText){
+      toast('已识别 ✓');
+      // 自动聚焦备注
+      setTimeout(()=>document.getElementById('et-note').focus(),200);
+    }
+  };
+
+  try{ voiceRecognition.start(); }catch(e){ toast('启动失败，请重试'); }
+}
+
 function openTask(id){
   editingId=id||null;
   const t=id?tasks.find(x=>x.id===id):null;
