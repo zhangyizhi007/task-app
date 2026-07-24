@@ -113,11 +113,11 @@ button{touch-action:manipulation;}
 .fab:active{transform:scale(.9);}
 
 /* Bottom nav */
-.nav{flex-shrink:0;display:grid;grid-template-columns:repeat(3,1fr);
+.nav{flex-shrink:0;display:grid;grid-template-columns:repeat(4,1fr);
   background:var(--card);border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom));}
-.nav .item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--ink3);
+.nav .item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--ink3);
   padding:4px 0;}
-.nav .item .ico{font-size:22px;line-height:1;}
+.nav .item .ico{font-size:20px;line-height:1;}
 .nav .item.active{color:var(--brand);font-weight:600;}
 
 /* Modal */
@@ -201,6 +201,46 @@ button{touch-action:manipulation;}
 .task-card .swipe-bg{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red);
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;
   border-radius:0 var(--radius) var(--radius) 0;transition:transform .2s;}
+
+/* ===== 经期页面样式 ===== */
+.period-wrap{flex:1;overflow-y:auto;padding:12px 16px 16px;-webkit-overflow-scrolling:touch;}
+.period-wrap::-webkit-scrollbar{display:none;}
+
+/* 周期摘要卡 */
+.period-summary{background:linear-gradient(135deg,#FDF2F8,#FCE7F3);border-radius:var(--radius);padding:16px;
+  margin-bottom:14px;box-shadow:var(--shadow);}
+.period-summary .ps-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.period-summary .ps-title{font-size:15px;font-weight:600;color:#9D174D;}
+.period-summary .ps-edit{font-size:12px;color:var(--brand);}
+.period-summary .ps-row{display:flex;gap:12px;margin-top:8px;}
+.period-summary .ps-item{flex:1;text-align:center;background:rgba(255,255,255,.7);border-radius:var(--r-sm);padding:10px 6px;}
+.period-summary .ps-item .v{font-size:22px;font-weight:700;color:#831843;}
+.period-summary .ps-item .l{font-size:11px;color:#9D174D;margin-top:2px;}
+.period-summary .ps-next{font-size:13px;color:#831843;margin-top:10px;padding-top:8px;border-top:1px solid rgba(157,23,77,.15);
+  display:flex;align-items:center;gap:6px;}
+
+/* 经期日历 */
+.period-cal .day.p-period{background:rgba(236,72,153,.12);color:#BE185D;font-weight:600;border-radius:12px;}
+.period-cal .day.p-period .dot{background:#EC4899;}
+.period-cal .day.p-fertile{background:rgba(16,185,129,.1);color:#065F46;border-radius:12px;}
+.period-cal .day.p-fertile .dot{background:#10B981;}
+.period-cal .day.p-ovulation{border:2px solid #8B5CF6;border-radius:12px;font-weight:700;color:#6D28D9;}
+.period-cal .day.p-safe{color:var(--ink3);}
+
+/* 经期图例 */
+.period-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0;font-size:11px;color:var(--ink2);}
+.period-legend span{display:flex;align-items:center;gap:4px;}
+.period-legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.period-legend .dot.d-period{background:#EC4899;}
+.period-legend .dot.d-fertile{background:#10B981;}
+.period-legend .dot.d-ovulation{border:2px solid #8B5CF6;width:6px;height:6px;}
+
+/* 登记弹窗 */
+.period-modal .btn-period{flex:1;padding:12px;border-radius:99px;font-weight:600;font-size:15px;text-align:center;
+  border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);}
+.period-modal .btn-period.active{border-color:#EC4899;background:#FDF2F8;color:#BE185D;}
+.period-modal .period-dates{display:flex;gap:10px;margin-top:14px;}
+.period-modal .period-dates>*{flex:1;}
 </style>
 </head>
 <body>
@@ -247,10 +287,22 @@ button{touch-action:manipulation;}
     <div class="cat-wrap" id="cat-wrap"></div>
   </div>
 
+  <!-- Page 3: Period -->
+  <div id="page-period" style="flex:1;display:none;flex-direction:column;overflow:hidden;">
+    <div class="header">
+      <h1>🌸 经期管理</h1>
+      <div class="right">
+        <button class="btn" onclick="openPeriodModal()" title="登记经期">＋</button>
+      </div>
+    </div>
+    <div class="period-wrap" id="period-wrap"></div>
+  </div>
+
   <!-- Nav -->
   <nav class="nav">
     <div class="item active" data-page="home" onclick="switchPage('home',this)"><span class="ico">🏠</span>任务</div>
     <div class="item" data-page="cal" onclick="switchPage('cal',this)"><span class="ico">📅</span>日历</div>
+    <div class="item" data-page="period" onclick="switchPage('period',this)"><span class="ico">🌸</span>经期</div>
     <div class="item" data-page="settings" onclick="switchPage('settings',this)"><span class="ico">⚙️</span>分类</div>
   </nav>
 </div>
@@ -314,6 +366,32 @@ button{touch-action:manipulation;}
   </div>
 </div>
 
+<!-- Period register modal -->
+<div id="modal-period" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-period')">
+  <div class="modal-sheet period-modal">
+    <h3>📝 登记经期</h3>
+    <label>本次经期</label>
+    <div class="row">
+      <div><label style="margin-top:0;">开始日期</label>
+        <input type="date" id="ep-start"></div>
+      <div><label style="margin-top:0;">结束日期</label>
+        <input type="date" id="ep-end"></div>
+    </div>
+    <label>平均周期天数</label>
+    <input type="number" id="ep-cycle" value="28" min="21" max="40" placeholder="默认28天">
+    <label>平均经期持续天数</label>
+    <input type="number" id="ep-duration" value="5" min="2" max="10" placeholder="默认5天">
+    <p style="font-size:12px;color:var(--ink3);margin-top:6px;">💡 周期 = 两次月经第一天之间的天数。如果不确定，保持默认即可。</p>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeModal('modal-period')">取消</button>
+      <button class="btn-primary" onclick="savePeriod()">保存</button>
+    </div>
+    <div class="btn-row" id="period-del-row" style="display:none;">
+      <button class="btn-danger" onclick="clearPeriods()">清空所有记录</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ========== Storage ==========
 const LS = {
@@ -332,6 +410,11 @@ let alertDismissed = false;
 
 // Calendar state
 let calYear, calMonth;
+
+// Period state
+let periods = LS.get('periods', []);        // [{id, start, end}]
+let periodCycle = LS.get('period_cycle', 28);
+let periodDuration = LS.get('period_duration', 5);
 
 // ========== Helpers ==========
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -652,14 +735,226 @@ function showDayEvents(dateStr, silent){
   if(!silent) box.scrollIntoView({behavior:'smooth'});
 }
 
+// ========== Period Management ==========
+function dateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// 计算排卵日: 下次月经第一天 - 14天
+// 易孕期: 排卵日前5天到后2天
+// 安全期: 经期结束后到易孕期前 + 易孕期后到下次月经前
+function calcPeriodPhases(lastStart, cycleDays, durationDays){
+  // 推算所有预测的月经第一天
+  const startDate = new Date(lastStart+'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // 生成未来几个月的预测
+  const predictedStarts = [];
+  for(let i=0;i<12;i++){
+    const d=new Date(startDate); d.setDate(d.getDate()+cycleDays*i);
+    predictedStarts.push(dateStr(d));
+  }
+
+  // 找到当前或最近一次预测
+  let currentCycleStart=null, nextCycleStart=null;
+  for(let i=0;i<predictedStarts.length;i++){
+    const ps=new Date(predictedStarts[i]+'T00:00:00');
+    const next=new Date(predictedStarts[i+1]+'T00:00:00');
+    if(ps<=today&&next>today){
+      currentCycleStart=predictedStarts[i]; nextCycleStart=predictedStarts[i+1]; break;
+    }
+    if(ps>today){
+      if(i===0){ currentCycleStart=predictedStarts[0]; nextCycleStart=predictedStarts[1]; break; }
+    }
+  }
+  if(!currentCycleStart&&predictedStarts.length>0){
+    currentCycleStart=predictedStarts[predictedStarts.length-1];
+    nextCycleStart=predictedStarts[predictedStarts.length-1];
+  }
+
+  // 排卵日 = 下次月经第一天 - 14
+  const ovulationDate = new Date(nextCycleStart+'T00:00:00'); ovulationDate.setDate(ovulationDate.getDate()-14);
+  const ovulationStr=dateStr(ovulationDate);
+
+  // 易孕期: 排卵日前5天到后2天
+  const fertileStart=new Date(ovulationDate); fertileStart.setDate(fertileStart.getDate()-5);
+  const fertileEnd=new Date(ovulationDate); fertileEnd.setDate(fertileEnd.getDate()+2);
+
+  // 经期日
+  const periodStart=new Date(currentCycleStart+'T00:00:00');
+  const periodEnd=new Date(periodStart); periodEnd.setDate(periodEnd.getDate()+durationDays-1);
+
+  return {
+    currentCycleStart, nextCycleStart, ovulationStr,
+    periodStart: dateStr(periodStart), periodEnd: dateStr(periodEnd),
+    fertileStart: dateStr(fertileStart), fertileEnd: dateStr(fertileEnd),
+    predictedStarts
+  };
+}
+
+function renderPeriodPage(){
+  const el=document.getElementById('period-wrap');
+  if(!periods.length){
+    el.innerHTML=`<div class="empty" style="padding:60px 20px;"><div class="icon">🌸</div><p>还没有经期记录</p><p style="font-size:13px;margin-top:6px;">点击右上角 ＋ 登记本次经期</p></div>`;
+    return;
+  }
+
+  // 按开始日期排序，取最近一次
+  const sorted=[...periods].sort((a,b)=>b.start.localeCompare(a.start));
+  const last=sorted[0];
+
+  const phases=calcPeriodPhases(last.start, periodCycle, periodDuration);
+  const today=new Date(); today.setHours(0,0,0,0);
+  const todayStr=dateStr(today);
+
+  // 当前状态判断
+  let statusText='',statusIcon='';
+  if(todayStr>=phases.periodStart&&todayStr<=phases.periodEnd){
+    statusIcon='🩸'; statusText='经期中';
+  }else if(todayStr>=phases.fertileStart&&todayStr<=phases.fertileEnd){
+    statusIcon='🌱'; statusText='易孕期';
+  }else{
+    statusIcon='🛡️'; statusText='安全期';
+  }
+
+  // 距下次月经天数
+  const nextStartDate=new Date(phases.nextCycleStart+'T00:00:00');
+  const daysToNext=Math.ceil((nextStartDate-today)/86400000);
+
+  // 历史记录列表
+  const historyHtml=sorted.slice(0,6).map((p,i)=>{
+    const s=new Date(p.start+'T00:00:00'); const e=new Date(p.end+'T00:00:00');
+    const dur=Math.ceil((e-s)/86400000)+1;
+    return `<div class="cat-item" style="margin-bottom:6px;">
+      <span class="name">${p.start} → ${p.end} <span style="color:var(--ink3);font-size:12px;">${dur}天</span></span>
+      <div class="icons"><span onclick="deletePeriod('${p.id}')">🗑️</span></div>
+    </div>`;
+  }).join('');
+
+  // 渲染月份选择日历
+  const now=new Date(); const calYear=now.getFullYear(); const calMonth=now.getMonth();
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+  const months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const dows=['日','一','二','三','四','五','六'];
+
+  let calHtml=`<div class="cal-header"><span class="month">${calYear}年 ${months[calMonth]}</span></div>`;
+  calHtml+='<div class="cal-grid period-cal">';
+  dows.forEach(d=>calHtml+=`<div class="dow">${d}</div>`);
+
+  for(let i=firstDay-1;i>=0;i--) calHtml+=`<div class="day other">${daysInPrev-i}</div>`;
+
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday=ds===todayStr;
+    let cls='day'; let dot='';
+    if(isToday) cls+=' today';
+    // 判断经期/易孕期/排卵日
+    if(ds>=phases.periodStart&&ds<=phases.periodEnd){ cls+=' p-period'; dot='<div class="dot"></div>'; }
+    else if(ds===phases.ovulationStr){ cls+=' p-ovulation'; }
+    else if(ds>=phases.fertileStart&&ds<=phases.fertileEnd){ cls+=' p-fertile'; dot='<div class="dot"></div>'; }
+    calHtml+=`<div class="${cls}">${d}${dot}</div>`;
+  }
+
+  const totalCells=firstDay+daysInMonth;
+  const remaining=totalCells%7===0?0:7-(totalCells%7);
+  for(let i=1;i<=remaining;i++) calHtml+=`<div class="day other">${i}</div>`;
+  calHtml+='</div>';
+
+  calHtml+=`<div class="period-legend">
+    <span><span class="dot d-period"></span>经期</span>
+    <span><span class="dot d-fertile"></span>易孕期</span>
+    <span><span class="dot d-ovulation"></span>排卵日</span>
+    <span>🛡️ 安全期</span>
+  </div>`;
+
+  el.innerHTML=`
+    <div class="period-summary">
+      <div class="ps-top">
+        <span class="ps-title">${statusIcon} 当前状态：${statusText}</span>
+        <span class="ps-edit" onclick="openPeriodModal()">编辑</span>
+      </div>
+      <div class="ps-row">
+        <div class="ps-item"><div class="v">${periodCycle}</div><div class="l">周期天数</div></div>
+        <div class="ps-item"><div class="v">${periodDuration}</div><div class="l">经期天数</div></div>
+        <div class="ps-item"><div class="v">${Math.max(0,daysToNext)}</div><div class="l">距下次</div></div>
+      </div>
+      <div class="ps-next">📅 预计下次月经：${phases.nextCycleStart}（距今${daysToNext}天）</div>
+    </div>
+    ${calHtml}
+    <div style="margin-top:14px;font-weight:600;font-size:15px;color:var(--ink);">📋 历史记录</div>
+    <div style="margin-top:8px;">${historyHtml||'<p style="color:var(--ink3);font-size:13px;padding:8px 0;">暂无记录</p>'}</div>
+  `;
+
+  // 经期提醒
+  if(daysToNext<=2&&daysToNext>=0){
+    const banner=document.getElementById('alert-banner');
+    const body=document.getElementById('alert-body');
+    if(!alertDismissed){
+      body.innerHTML=`<b>🌸 月经预计${daysToNext===0?'今天':'明天'}到来</b>提前做好准备哦`;
+      banner.style.display='flex';
+    }
+  }
+}
+
+function openPeriodModal(){
+  document.getElementById('ep-start').value='';
+  document.getElementById('ep-end').value='';
+  document.getElementById('ep-cycle').value=periodCycle;
+  document.getElementById('ep-duration').value=periodDuration;
+  document.getElementById('period-del-row').style.display=periods.length?'flex':'none';
+  // 默认填充上次结束日期的后一天作为开始
+  if(periods.length){
+    const last=periods.sort((a,b)=>b.start.localeCompare(a.start))[0];
+    const next=new Date(last.end+'T00:00:00'); next.setDate(next.getDate()+1);
+    document.getElementById('ep-start').value=dateStr(next);
+    const end=new Date(next); end.setDate(end.getDate()+periodDuration-1);
+    document.getElementById('ep-end').value=dateStr(end);
+  }
+  document.getElementById('modal-period').style.display='flex';
+}
+
+function savePeriod(){
+  const start=document.getElementById('ep-start').value;
+  const end=document.getElementById('ep-end').value;
+  const cycle=parseInt(document.getElementById('ep-cycle').value)||28;
+  const duration=parseInt(document.getElementById('ep-duration').value)||5;
+
+  if(!start||!end){ toast('请选择开始和结束日期'); return; }
+  if(end<start){ toast('结束日期不能早于开始日期'); return; }
+  if(cycle<18||cycle>45){ toast('周期天数范围18-45天'); return; }
+  if(duration<1||duration>14){ toast('经期持续天数范围1-14天'); return; }
+
+  periodCycle=cycle; periodDuration=duration;
+  // 检查是否已存在同开始日期的记录，覆盖
+  const existIdx=periods.findIndex(p=>p.start===start);
+  if(existIdx>=0){ periods[existIdx]={id:periods[existIdx].id,start,end}; }
+  else{ periods.push({id:uid(),start,end}); }
+  // 按开始日期排序
+  periods.sort((a,b)=>a.start.localeCompare(b.start));
+  persist(); renderPeriodPage(); closeModal('modal-period'); toast('经期记录已保存');
+}
+
+function deletePeriod(id){
+  if(!confirm('确定删除这条记录吗？')) return;
+  periods=periods.filter(p=>p.id!==id);
+  persist(); renderPeriodPage(); toast('记录已删除');
+}
+
+function clearPeriods(){
+  if(!confirm('确定清空所有经期记录吗？此操作不可恢复。')) return;
+  periods=[]; persist(); renderPeriodPage(); closeModal('modal-period'); toast('已清空');
+}
+
 // ========== Page switch ==========
 function switchPage(page,btn){
   document.getElementById('page-home').style.display=page==='home'?'flex':'none';
   document.getElementById('page-cal').style.display=page==='cal'?'flex':'none';
+  document.getElementById('page-period').style.display=page==='period'?'flex':'none';
   document.getElementById('page-settings').style.display=page==='settings'?'flex':'none';
   document.querySelectorAll('.nav .item').forEach(i=>i.classList.remove('active'));
   btn.classList.add('active');
   if(page==='cal'){ calYear=null; calMonth=null; renderCalendar(); }
+  if(page==='period') renderPeriodPage();
   if(page==='settings') renderCategories();
 }
 
@@ -667,7 +962,8 @@ function switchPage(page,btn){
 function closeModal(id){ document.getElementById(id).style.display='none'; editingId=null; editingCat=null; }
 
 // ========== Persist ==========
-function persist(){ LS.set('tasks',tasks); LS.set('categories',categories); LS.set('reminder_on',reminderOn); }
+function persist(){ LS.set('tasks',tasks); LS.set('categories',categories); LS.set('reminder_on',reminderOn);
+  LS.set('periods',periods); LS.set('period_cycle',periodCycle); LS.set('period_duration',periodDuration); }
 
 // ========== Init ==========
 document.getElementById('reminder-switch').classList.toggle('on',reminderOn);
@@ -688,7 +984,8 @@ renderAll();
     <p><b>8. 日历视图</b> — 底部导航切换至"日历"，有任务的日期显示圆点，点击查看当天事项。</p>
     <p><b>9. 分类管理</b> — 底部导航切换至"分类"，支持新增、编辑、删除分类。</p>
     <p><b>10. 批量导入</b> — 顶部 📥 按钮，每行一条任务粘贴导入。</p>
-    <p><b>11. 数据持久化</b> — 所有数据存储在浏览器本地，关闭/刷新页面不丢失。</p>
+    <p><b>11. 经期管理</b> — 底部导航切换至"经期"，登记开始/结束日期，自动计算安全期、易孕期、排卵日和下次月经预测。</p>
+    <p><b>12. 数据持久化</b> — 所有数据存储在浏览器本地，关闭/刷新页面不丢失。</p>
     <button onclick="closeTutorial()" style="margin-top:16px;width:100%;padding:12px;border-radius:99px;background:var(--brand);color:#fff;font-weight:600;font-size:15px;">知道了</button>
   </div>
 </div>
