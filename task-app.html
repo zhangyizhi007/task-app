@@ -16,7 +16,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
   font-size:15px;line-height:1.5;user-select:none;
 }
 input,textarea,select,button{font:inherit;color:inherit;border:none;outline:none;background:none;}
-button{touch-action:manipulation;}
+button{touch-action:manipulation;cursor:pointer;}
 
 .app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;position:relative;overflow:hidden;}
 
@@ -226,6 +226,8 @@ button{touch-action:manipulation;}
 .period-cal .day.p-fertile .dot{background:#10B981;}
 .period-cal .day.p-ovulation{border:2px solid #8B5CF6;border-radius:12px;font-weight:700;color:#6D28D9;}
 .period-cal .day.p-safe{color:var(--ink3);}
+.period-cal .day{cursor:pointer;-webkit-tap-highlight-color:rgba(236,72,153,.15);}
+.period-cal .day:active{background:rgba(236,72,153,.1);}
 
 /* 经期选择模式 */
 .period-cal .day.select-start{border:3px solid #EC4899;border-radius:12px;font-weight:700;}
@@ -235,8 +237,7 @@ button{touch-action:manipulation;}
 /* 选择提示条 */
 .select-bar{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#FDF2F8,#FCE7F3);
   border:1px solid #F9A8D4;border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:#9D174D;}
-.select-bar .sb-cancel{color:#BE185D;font-weight:600;font-size:13px;}
-.select-bar .sb-confirm{padding:6px 16px;border-radius:99px;background:#EC4899;color:#fff;font-weight:600;font-size:13px;}
+.select-bar .sb-cancel{color:#BE185D;font-weight:600;font-size:13px;padding:4px 10px;}
 
 /* 经期图例 */
 .period-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0;font-size:11px;color:var(--ink2);}
@@ -302,8 +303,9 @@ button{touch-action:manipulation;}
   <div id="page-period" style="flex:1;display:none;flex-direction:column;overflow:hidden;">
     <div class="header">
       <h1>🌸 经期管理</h1>
-      <div class="right">
-        <button class="btn" id="period-add-btn" onclick="startPeriodSelect()" title="点击日历选择日期登记">＋</button>
+      <div class="right" id="period-header-btns">
+        <button class="btn" style="width:auto;padding:0 10px;font-size:13px;font-weight:600;color:#BE185D;border-radius:99px;background:#FDF2F8;" data-action="pick-start">📅 开始</button>
+        <button class="btn" style="width:auto;padding:0 10px;font-size:13px;font-weight:600;color:#BE185D;border-radius:99px;background:#FDF2F8;" data-action="pick-end">📅 结束</button>
       </div>
     </div>
     <div class="period-wrap" id="period-wrap"></div>
@@ -427,6 +429,7 @@ let periods = LS.get('periods', []);        // [{id, start, end}]
 let periodCycle = LS.get('period_cycle', 28);
 let periodDuration = LS.get('period_duration', 5);
 let periodSelect = { active:false, start:null, end:null };
+let pickMode = null; // 'start' | 'end' — 当前在选开始还是结束
 
 // ========== Helpers ==========
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -808,10 +811,9 @@ function renderPeriodPage(){
 
   // 无记录时的空态
   if(!periods.length){
-    periodSelect={active:true,start:null,end:null};
-    el.innerHTML=renderPeriodCal(now.getFullYear(),now.getMonth(),null,null,true)+
-      `<div style="text-align:center;color:var(--ink3);font-size:13px;padding:8px 0;">👆 点击日历日期选择本次经期开始日</div>`;
-    updatePeriodHeader(true);
+    const calHtml=renderPeriodCal(now.getFullYear(),now.getMonth(),null,null,true);
+    el.innerHTML=calHtml+
+      `<div style="text-align:center;color:var(--ink3);font-size:13px;padding:8px 0;">👆 点击上方「📅 开始」按钮，然后选择经期开始日期</div>`;
     return;
   }
 
@@ -832,9 +834,12 @@ function renderPeriodPage(){
   const historyHtml=sorted.slice(0,6).map((p)=>{
     const s=new Date(p.start+'T00:00:00'); const e=new Date(p.end+'T00:00:00');
     const dur=Math.ceil((e-s)/86400000)+1;
+    const isComplete=p.end!==p.start;
+    const label=isComplete?`${p.start} → ${p.end} <span style="color:var(--ink3);font-size:12px;">${dur}天</span>`
+      :`${p.start} <span style="color:#F59E0B;font-size:11px;">待补登结束</span>`;
     return `<div class="cat-item" style="margin-bottom:6px;">
-      <span class="name">${p.start} → ${p.end} <span style="color:var(--ink3);font-size:12px;">${dur}天</span></span>
-      <div class="icons"><span onclick="deletePeriod('${p.id}')">🗑️</span></div>
+      <span class="name">${label}</span>
+      <div class="icons"><span data-action="del-period" data-pid="${p.id}">🗑️</span></div>
     </div>`;
   }).join('');
 
@@ -844,7 +849,7 @@ function renderPeriodPage(){
     <div class="period-summary">
       <div class="ps-top">
         <span class="ps-title">${statusIcon} 当前状态：${statusText}</span>
-        <span class="ps-edit" onclick="startPeriodSelect()">登记</span>
+        <span class="ps-edit" data-action="pick-start">登记开始</span>
       </div>
       <div class="ps-row">
         <div class="ps-item"><div class="v">${periodCycle}</div><div class="l">周期天数</div></div>
@@ -852,7 +857,7 @@ function renderPeriodPage(){
         <div class="ps-item"><div class="v">${Math.max(0,daysToNext)}</div><div class="l">距下次</div></div>
       </div>
       <div class="ps-next">📅 预计下次月经：${phases.nextCycleStart}（距今${daysToNext}天）
-        <span style="margin-left:8px;font-size:12px;color:var(--brand);" onclick="exportPeriodToCalendar('${phases.nextCycleStart}')">📲 导入日历提醒</span>
+        <span style="margin-left:8px;font-size:12px;color:var(--brand);" data-action="export-cal" data-next="${phases.nextCycleStart}">📲 导入日历提醒</span>
       </div>
     </div>
     ${calHtml}
@@ -882,20 +887,17 @@ function renderPeriodCal(year, month, phases, select, isNew){
   // 选择提示条
   let selectBar='';
   if(select&&select.active){
-    if(!select.start){
-      selectBar=`<div class="select-bar"><span>📌 请点击选择<b>开始日期</b></span><span class="sb-cancel" onclick="cancelPeriodSelect()">取消</span></div>`;
-    }else if(!select.end){
-      selectBar=`<div class="select-bar"><span>📌 已选开始：<b>${select.start}</b>，请点击选择<b>结束日期</b></span><span class="sb-cancel" onclick="cancelPeriodSelect()">取消</span></div>`;
-    }else{
-      selectBar=`<div class="select-bar"><span>📌 <b>${select.start}</b> → <b>${select.end}</b></span>
-        <span style="display:flex;gap:6px;"><span class="sb-cancel" onclick="cancelPeriodSelect()">取消</span><span class="sb-confirm" onclick="confirmPeriodSelect()">✓ 确认</span></span></div>`;
+    if(pickMode==='start'){
+      selectBar=`<div class="select-bar"><span>🩸 请选择<b>经期开始日期</b></span><span class="sb-cancel" data-action="cancel-select">取消</span></div>`;
+    }else if(pickMode==='end'){
+      selectBar=`<div class="select-bar"><span>🩸 请选择<b>经期结束日期</b></span><span class="sb-cancel" data-action="cancel-select">取消</span></div>`;
     }
   }
 
   let html=`<div class="cal-header">
-    <button class="nav-btn" onclick="changePeriodMonth(${year},${month},-1)">◀</button>
+    <button class="nav-btn" data-action="prev-month">◀</button>
     <span class="month">${year}年 ${months[month]}</span>
-    <button class="nav-btn" onclick="changePeriodMonth(${year},${month},1)">▶</button>
+    <button class="nav-btn" data-action="next-month">▶</button>
   </div>`;
   if(selectBar) html+=selectBar;
   html+='<div class="cal-grid period-cal">';
@@ -906,16 +908,13 @@ function renderPeriodCal(year, month, phases, select, isNew){
   for(let d=1;d<=daysInMonth;d++){
     const ds=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const isToday=ds===todayStr;
-    let cls='day'; let dot=''; let onclick='';
+    let cls='day'; let dot='';
 
-    // 选择模式下可点击
+    // 选择模式下显示选中态
     if(select&&select.active){
       if(ds===select.start) cls+=' select-start';
       else if(ds===select.end) cls+=' select-end';
       else if(select.start&&select.end&&ds>select.start&&ds<select.end) cls+=' select-range';
-      onclick=`onclick="onPeriodDayClick('${ds}')"`;
-    }else{
-      onclick=`onclick="onPeriodDayClick('${ds}')"`;
     }
 
     if(isToday&&!select?.active) cls+=' today';
@@ -926,7 +925,7 @@ function renderPeriodCal(year, month, phases, select, isNew){
       else if(ds>=phases.fertileStart&&ds<=phases.fertileEnd){ cls+=' p-fertile'; dot='<div class="dot"></div>'; }
     }
 
-    html+=`<div class="${cls}" ${onclick}>${d}${dot}</div>`;
+    html+=`<div class="${cls}" data-date="${ds}">${d}${dot}</div>`;
   }
 
   const totalCells=firstDay+daysInMonth;
@@ -944,94 +943,118 @@ function renderPeriodCal(year, month, phases, select, isNew){
   return html;
 }
 
-function startPeriodSelect(){
+function startPickMode(mode){
+  pickMode=mode;
   periodSelect={active:true,start:null,end:null};
   renderPeriodPage();
-  updatePeriodHeader(true);
 }
 
 function cancelPeriodSelect(){
   periodSelect={active:false,start:null,end:null};
+  pickMode=null;
   renderPeriodPage();
-  updatePeriodHeader(false);
 }
 
 function onPeriodDayClick(dateStr){
-  if(!periodSelect.active) return startPeriodSelect();
-
-  if(!periodSelect.start){
+  // 非选择模式：自动进入开始选择
+  if(!periodSelect.active){
+    startPickMode('start');
     periodSelect.start=dateStr;
     renderPeriodPage();
-  }else if(!periodSelect.end){
-    if(dateStr<periodSelect.start){ periodSelect.end=periodSelect.start; periodSelect.start=dateStr; }
-    else{ periodSelect.end=dateStr; }
+    return;
+  }
+
+  if(pickMode==='start'){
+    // 选择开始日期 → 直接保存新记录
+    periodSelect.start=dateStr;
+    savePeriodRecord(dateStr, dateStr); // 暂存开始=结束，等待后续补登结束
+  }else if(pickMode==='end'){
+    // 选择结束日期 → 找到最近一条未结束的记录，补登结束
+    const last=periods.sort((a,b)=>b.start.localeCompare(a.start))[0];
+    if(!last||last.end!==last.start){
+      // 没有未结束的记录
+      if(!last||last.end!==last.start){
+        // 找最近的记录并补登
+        const latest=periods[periods.length-1];
+        if(latest&&latest.end===latest.start){
+          latest.end=dateStr;
+          if(dateStr<latest.start){ latest.end=latest.start; latest.start=dateStr; }
+          periods.sort((a,b)=>a.start.localeCompare(b.start));
+          // 更新周期和经期天数
+          updatePeriodParams();
+          persist();
+          periodSelect={active:false,start:null,end:null}; pickMode=null;
+          renderPeriodPage();
+          toast('经期结束日期已记录 ✓');
+          return;
+        }
+      }
+      toast('请先登记经期开始日期');
+      cancelPeriodSelect();
+      return;
+    }
+    // 补登结束日期
+    if(dateStr<last.start){ last.end=last.start; last.start=dateStr; }
+    else{ last.end=dateStr; }
+    periods.sort((a,b)=>a.start.localeCompare(b.start));
+    updatePeriodParams();
+    persist();
+    periodSelect={active:false,start:null,end:null}; pickMode=null;
     renderPeriodPage();
+    toast('经期结束日期已记录 ✓');
   }
 }
 
-function confirmPeriodSelect(){
-  if(!periodSelect.start||!periodSelect.end){ toast('请选择开始和结束日期'); return; }
-  const start=periodSelect.start; const end=periodSelect.end;
-
-  // 自动计算周期和经期天数（基于最近几次记录）
-  if(periods.length>=1){
-    const lastStart=periods[periods.length-1].start;
-    const s1=new Date(lastStart+'T00:00:00'); const s2=new Date(start+'T00:00:00');
-    const diff=Math.round((s2-s1)/86400000);
-    if(diff>=18&&diff<=45) periodCycle=diff;
-  }
-  const s=new Date(start+'T00:00:00'); const e=new Date(end+'T00:00:00');
-  const dur=Math.ceil((e-s)/86400000)+1;
-  if(dur>=1&&dur<=14) periodDuration=dur;
-
+// 保存新经期记录（开始时先存start=end）
+function savePeriodRecord(start, end){
   const existIdx=periods.findIndex(p=>p.start===start);
   if(existIdx>=0){ periods[existIdx]={id:periods[existIdx].id,start,end}; }
   else{ periods.push({id:uid(),start,end}); }
   periods.sort((a,b)=>a.start.localeCompare(b.start));
-
+  updatePeriodParams();
   persist();
-  periodSelect={active:false,start:null,end:null};
+  periodSelect={active:false,start:null,end:null}; pickMode=null;
   renderPeriodPage();
-  updatePeriodHeader(false);
-  toast('经期记录已保存 ✓');
+  toast('经期开始日期已记录 ✓ 请再点击「📅 结束」补登结束日期');
 }
+
+// 根据已有记录自动更新周期和经期天数
+function updatePeriodParams(){
+  if(periods.length<1) return;
+  const complete=periods.filter(p=>p.end!==p.start); // 有完整开始+结束的记录
+  if(complete.length>=1){
+    // 平均经期天数
+    const totalDur=complete.reduce((sum,p)=>{
+      const s=new Date(p.start+'T00:00:00'); const e=new Date(p.end+'T00:00:00');
+      return sum+Math.ceil((e-s)/86400000)+1;
+    },0);
+    periodDuration=Math.round(totalDur/complete.length);
+  }
+  if(periods.length>=2){
+    // 平均周期
+    let totalCycle=0; let count=0;
+    for(let i=1;i<periods.length;i++){
+      const s1=new Date(periods[i-1].start+'T00:00:00');
+      const s2=new Date(periods[i].start+'T00:00:00');
+      const diff=Math.round((s2-s1)/86400000);
+      if(diff>=18&&diff<=45){ totalCycle+=diff; count++; }
+    }
+    if(count>0) periodCycle=Math.round(totalCycle/count);
+  }
+}
+
+function confirmPeriodSelect(){} // 不再需要确认按钮
 
 function changePeriodMonth(year,month,delta){
-  const el=document.getElementById('period-wrap');
   let m=month+delta; let y=year;
   if(m<0){ m=11; y--; } if(m>11){ m=0; y++; }
-
-  // 重新构建页面（不改变选择状态）
-  const sorted=[...periods].sort((a,b)=>b.start.localeCompare(a.start));
-  const last=sorted[0];
-  const phases=last?calcPeriodPhases(last.start,periodCycle,periodDuration):null;
-  const calHtml=renderPeriodCal(y,m,phases,periodSelect.active?periodSelect:null,!periods.length);
-
-  // 只更新日历部分
-  const existing=el.querySelector('.period-cal');
-  const existingBar=el.querySelector('.select-bar');
-  const calHeader=el.querySelector('.cal-header');
-  if(existing){
-    // 重建整个 period-wrap 内容但保留摘要和历史
-    renderPeriodPage();
-  }
+  renderPeriodPage();
 }
 
-function updatePeriodHeader(inSelect){
-  const btn=document.getElementById('period-add-btn');
-  if(inSelect){
-    btn.textContent='✕'; btn.style.color='#EC4899'; btn.title='取消选择';
-    btn.onclick=function(){ cancelPeriodSelect(); };
-  }else{
-    btn.textContent='＋'; btn.style.color=''; btn.title='点击日历选择日期登记';
-    btn.onclick=function(){ startPeriodSelect(); };
-  }
-}
-
-// 删除原有的 openPeriodModal / savePeriod 函数，保留 deletePeriod 和 clearPeriods
-function openPeriodModal(){} // 占位，保留兼容
-
-function savePeriod(){} // 占位
+// 删除旧版函数
+function updatePeriodHeader(){}
+function openPeriodModal(){}
+function savePeriod(){}
 
 function deletePeriod(id){
   if(!confirm('确定删除这条记录吗？')) return;
@@ -1120,6 +1143,38 @@ function persist(){ LS.set('tasks',tasks); LS.set('categories',categories); LS.s
 
 // ========== Init ==========
 document.getElementById('reminder-switch').classList.toggle('on',reminderOn);
+
+// 事件委托：经期页面的所有交互
+document.getElementById('period-wrap').addEventListener('click', function(e){
+  const t=e.target.closest('[data-date]');
+  if(t){
+    const ds=t.getAttribute('data-date');
+    if(ds) onPeriodDayClick(ds);
+    return;
+  }
+  const a=e.target.closest('[data-action]');
+  if(a){
+    const act=a.getAttribute('data-action');
+    if(act==='cancel-select') cancelPeriodSelect();
+    else if(act==='prev-month'){ const now=new Date(); changePeriodMonth(now.getFullYear(),now.getMonth(),-1); }
+    else if(act==='next-month'){ const now=new Date(); changePeriodMonth(now.getFullYear(),now.getMonth(),1); }
+    else if(act==='pick-start') startPickMode('start');
+    else if(act==='pick-end') startPickMode('end');
+    else if(act==='export-cal'){ const nx=a.getAttribute('data-next'); if(nx) exportPeriodToCalendar(nx); }
+    else if(act==='del-period'){ const pid=a.getAttribute('data-pid'); if(pid) deletePeriod(pid); }
+    return;
+  }
+});
+
+// Header 按钮事件委托
+document.getElementById('period-header-btns').addEventListener('click', function(e){
+  const a=e.target.closest('[data-action]');
+  if(!a) return;
+  const act=a.getAttribute('data-action');
+  if(act==='pick-start') startPickMode('start');
+  else if(act==='pick-end') startPickMode('end');
+});
+
 renderAll();
 </script>
 
