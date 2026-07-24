@@ -222,6 +222,8 @@ button{touch-action:manipulation;cursor:pointer;}
 /* 经期日历 */
 .period-cal .day.p-period{background:rgba(236,72,153,.12);color:#BE185D;font-weight:600;border-radius:12px;}
 .period-cal .day.p-period .dot{background:#EC4899;}
+.period-cal .day.p-predicted{background:rgba(236,72,153,.06);color:#DB2777;border-radius:12px;}
+.period-cal .day.p-predicted .dot{background:rgba(236,72,153,.3);}
 .period-cal .day.p-fertile{background:rgba(16,185,129,.1);color:#065F46;border-radius:12px;}
 .period-cal .day.p-fertile .dot{background:#10B981;}
 .period-cal .day.p-ovulation{border:2px solid #8B5CF6;border-radius:12px;font-weight:700;color:#6D28D9;}
@@ -798,11 +800,19 @@ function calcPeriodPhases(lastStart, cycleDays, durationDays){
   const periodStart=new Date(currentCycleStart+'T00:00:00');
   const periodEnd=new Date(periodStart); periodEnd.setDate(periodEnd.getDate()+durationDays-1);
 
+  // 生成所有未来预测经期范围（从下个周期开始）
+  const predictedPeriods=[];
+  for(let i=0;i<predictedStarts.length;i++){
+    const ps=new Date(predictedStarts[i]+'T00:00:00');
+    const pe=new Date(ps); pe.setDate(pe.getDate()+durationDays-1);
+    predictedPeriods.push({start:dateStr(ps),end:dateStr(pe)});
+  }
+
   return {
     currentCycleStart, nextCycleStart, ovulationStr,
     periodStart: dateStr(periodStart), periodEnd: dateStr(periodEnd),
     fertileStart: dateStr(fertileStart), fertileEnd: dateStr(fertileEnd),
-    predictedStarts
+    predictedStarts, predictedPeriods
   };
 }
 
@@ -924,9 +934,16 @@ function renderPeriodCal(year, month, phases, select, isNew){
     if(isToday&&!select?.active) cls+=' today';
     // 显示经期/易孕期/排卵日颜色（非选择模式下）
     if(phases&&(!select||!select.active)){
-      if(ds>=phases.periodStart&&ds<=phases.periodEnd){ cls+=' p-period'; dot='<div class="dot"></div>'; }
-      else if(ds===phases.ovulationStr){ cls+=' p-ovulation'; }
-      else if(ds>=phases.fertileStart&&ds<=phases.fertileEnd){ cls+=' p-fertile'; dot='<div class="dot"></div>'; }
+      let colored=false;
+      if(ds>=phases.periodStart&&ds<=phases.periodEnd){ cls+=' p-period'; dot='<div class="dot"></div>'; colored=true; }
+      else if(ds===phases.ovulationStr){ cls+=' p-ovulation'; colored=true; }
+      else if(ds>=phases.fertileStart&&ds<=phases.fertileEnd){ cls+=' p-fertile'; dot='<div class="dot"></div>'; colored=true; }
+      // 未来预测经期：浅粉色（排除当前已发生的经期）
+      if(!colored&&phases.predictedPeriods){
+        for(const pp of phases.predictedPeriods){
+          if(ds>=pp.start&&ds<=pp.end&&ds>phases.periodEnd){ cls+=' p-predicted'; dot='<div class="dot"></div>'; break; }
+        }
+      }
     }
 
     html+=`<div class="${cls}" data-date="${ds}">${d}${dot}</div>`;
@@ -939,6 +956,7 @@ function renderPeriodCal(year, month, phases, select, isNew){
 
   html+=`<div class="period-legend">
     <span><span class="dot d-period"></span>经期</span>
+    <span><span class="dot" style="background:rgba(236,72,153,.3);"></span>预测经期</span>
     <span><span class="dot d-fertile"></span>易孕期</span>
     <span><span class="dot d-ovulation"></span>排卵日</span>
     <span>🛡️ 安全期</span>
