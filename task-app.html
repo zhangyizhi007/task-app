@@ -227,6 +227,17 @@ button{touch-action:manipulation;}
 .period-cal .day.p-ovulation{border:2px solid #8B5CF6;border-radius:12px;font-weight:700;color:#6D28D9;}
 .period-cal .day.p-safe{color:var(--ink3);}
 
+/* 经期选择模式 */
+.period-cal .day.select-start{border:3px solid #EC4899;border-radius:12px;font-weight:700;}
+.period-cal .day.select-end{border:3px solid #EC4899;border-radius:12px;font-weight:700;}
+.period-cal .day.select-range{background:rgba(236,72,153,.08);border-radius:0;}
+
+/* 选择提示条 */
+.select-bar{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#FDF2F8,#FCE7F3);
+  border:1px solid #F9A8D4;border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:#9D174D;}
+.select-bar .sb-cancel{color:#BE185D;font-weight:600;font-size:13px;}
+.select-bar .sb-confirm{padding:6px 16px;border-radius:99px;background:#EC4899;color:#fff;font-weight:600;font-size:13px;}
+
 /* 经期图例 */
 .period-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0;font-size:11px;color:var(--ink2);}
 .period-legend span{display:flex;align-items:center;gap:4px;}
@@ -292,7 +303,7 @@ button{touch-action:manipulation;}
     <div class="header">
       <h1>🌸 经期管理</h1>
       <div class="right">
-        <button class="btn" onclick="openPeriodModal()" title="登记经期">＋</button>
+        <button class="btn" id="period-add-btn" onclick="startPeriodSelect()" title="点击日历选择日期登记">＋</button>
       </div>
     </div>
     <div class="period-wrap" id="period-wrap"></div>
@@ -415,6 +426,7 @@ let calYear, calMonth;
 let periods = LS.get('periods', []);        // [{id, start, end}]
 let periodCycle = LS.get('period_cycle', 28);
 let periodDuration = LS.get('period_duration', 5);
+let periodSelect = { active:false, start:null, end:null };
 
 // ========== Helpers ==========
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -792,35 +804,32 @@ function calcPeriodPhases(lastStart, cycleDays, durationDays){
 
 function renderPeriodPage(){
   const el=document.getElementById('period-wrap');
+  const now=new Date(); const todayStr=dateStr(now);
+
+  // 无记录时的空态
   if(!periods.length){
-    el.innerHTML=`<div class="empty" style="padding:60px 20px;"><div class="icon">🌸</div><p>还没有经期记录</p><p style="font-size:13px;margin-top:6px;">点击右上角 ＋ 登记本次经期</p></div>`;
+    periodSelect={active:true,start:null,end:null};
+    el.innerHTML=renderPeriodCal(now.getFullYear(),now.getMonth(),null,null,true)+
+      `<div style="text-align:center;color:var(--ink3);font-size:13px;padding:8px 0;">👆 点击日历日期选择本次经期开始日</div>`;
+    updatePeriodHeader(true);
     return;
   }
 
-  // 按开始日期排序，取最近一次
+  // 有记录：显示摘要 + 可选择模式日历
   const sorted=[...periods].sort((a,b)=>b.start.localeCompare(a.start));
   const last=sorted[0];
-
   const phases=calcPeriodPhases(last.start, periodCycle, periodDuration);
   const today=new Date(); today.setHours(0,0,0,0);
-  const todayStr=dateStr(today);
 
-  // 当前状态判断
   let statusText='',statusIcon='';
-  if(todayStr>=phases.periodStart&&todayStr<=phases.periodEnd){
-    statusIcon='🩸'; statusText='经期中';
-  }else if(todayStr>=phases.fertileStart&&todayStr<=phases.fertileEnd){
-    statusIcon='🌱'; statusText='易孕期';
-  }else{
-    statusIcon='🛡️'; statusText='安全期';
-  }
+  if(todayStr>=phases.periodStart&&todayStr<=phases.periodEnd){ statusIcon='🩸'; statusText='经期中'; }
+  else if(todayStr>=phases.fertileStart&&todayStr<=phases.fertileEnd){ statusIcon='🌱'; statusText='易孕期'; }
+  else{ statusIcon='🛡️'; statusText='安全期'; }
 
-  // 距下次月经天数
   const nextStartDate=new Date(phases.nextCycleStart+'T00:00:00');
   const daysToNext=Math.ceil((nextStartDate-today)/86400000);
 
-  // 历史记录列表
-  const historyHtml=sorted.slice(0,6).map((p,i)=>{
+  const historyHtml=sorted.slice(0,6).map((p)=>{
     const s=new Date(p.start+'T00:00:00'); const e=new Date(p.end+'T00:00:00');
     const dur=Math.ceil((e-s)/86400000)+1;
     return `<div class="cat-item" style="margin-bottom:6px;">
@@ -829,49 +838,13 @@ function renderPeriodPage(){
     </div>`;
   }).join('');
 
-  // 渲染月份选择日历
-  const now=new Date(); const calYear=now.getFullYear(); const calMonth=now.getMonth();
-  const firstDay=new Date(calYear,calMonth,1).getDay();
-  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
-  const daysInPrev=new Date(calYear,calMonth,0).getDate();
-  const months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const dows=['日','一','二','三','四','五','六'];
-
-  let calHtml=`<div class="cal-header"><span class="month">${calYear}年 ${months[calMonth]}</span></div>`;
-  calHtml+='<div class="cal-grid period-cal">';
-  dows.forEach(d=>calHtml+=`<div class="dow">${d}</div>`);
-
-  for(let i=firstDay-1;i>=0;i--) calHtml+=`<div class="day other">${daysInPrev-i}</div>`;
-
-  for(let d=1;d<=daysInMonth;d++){
-    const ds=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const isToday=ds===todayStr;
-    let cls='day'; let dot='';
-    if(isToday) cls+=' today';
-    // 判断经期/易孕期/排卵日
-    if(ds>=phases.periodStart&&ds<=phases.periodEnd){ cls+=' p-period'; dot='<div class="dot"></div>'; }
-    else if(ds===phases.ovulationStr){ cls+=' p-ovulation'; }
-    else if(ds>=phases.fertileStart&&ds<=phases.fertileEnd){ cls+=' p-fertile'; dot='<div class="dot"></div>'; }
-    calHtml+=`<div class="${cls}">${d}${dot}</div>`;
-  }
-
-  const totalCells=firstDay+daysInMonth;
-  const remaining=totalCells%7===0?0:7-(totalCells%7);
-  for(let i=1;i<=remaining;i++) calHtml+=`<div class="day other">${i}</div>`;
-  calHtml+='</div>';
-
-  calHtml+=`<div class="period-legend">
-    <span><span class="dot d-period"></span>经期</span>
-    <span><span class="dot d-fertile"></span>易孕期</span>
-    <span><span class="dot d-ovulation"></span>排卵日</span>
-    <span>🛡️ 安全期</span>
-  </div>`;
+  const calHtml=renderPeriodCal(now.getFullYear(),now.getMonth(),phases,periodSelect.active?periodSelect:null,false);
 
   el.innerHTML=`
     <div class="period-summary">
       <div class="ps-top">
         <span class="ps-title">${statusIcon} 当前状态：${statusText}</span>
-        <span class="ps-edit" onclick="openPeriodModal()">编辑</span>
+        <span class="ps-edit" onclick="startPeriodSelect()">登记</span>
       </div>
       <div class="ps-row">
         <div class="ps-item"><div class="v">${periodCycle}</div><div class="l">周期天数</div></div>
@@ -896,43 +869,167 @@ function renderPeriodPage(){
   }
 }
 
-function openPeriodModal(){
-  document.getElementById('ep-start').value='';
-  document.getElementById('ep-end').value='';
-  document.getElementById('ep-cycle').value=periodCycle;
-  document.getElementById('ep-duration').value=periodDuration;
-  document.getElementById('period-del-row').style.display=periods.length?'flex':'none';
-  // 默认填充上次结束日期的后一天作为开始
-  if(periods.length){
-    const last=periods.sort((a,b)=>b.start.localeCompare(a.start))[0];
-    const next=new Date(last.end+'T00:00:00'); next.setDate(next.getDate()+1);
-    document.getElementById('ep-start').value=dateStr(next);
-    const end=new Date(next); end.setDate(end.getDate()+periodDuration-1);
-    document.getElementById('ep-end').value=dateStr(end);
+function renderPeriodCal(year, month, phases, select, isNew){
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const daysInPrev=new Date(year,month,0).getDate();
+  const months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const dows=['日','一','二','三','四','五','六'];
+  const today=new Date(); const todayStr=dateStr(today);
+
+  // 选择提示条
+  let selectBar='';
+  if(select&&select.active){
+    if(!select.start){
+      selectBar=`<div class="select-bar"><span>📌 请点击选择<b>开始日期</b></span><span class="sb-cancel" onclick="cancelPeriodSelect()">取消</span></div>`;
+    }else if(!select.end){
+      selectBar=`<div class="select-bar"><span>📌 已选开始：<b>${select.start}</b>，请点击选择<b>结束日期</b></span><span class="sb-cancel" onclick="cancelPeriodSelect()">取消</span></div>`;
+    }else{
+      selectBar=`<div class="select-bar"><span>📌 <b>${select.start}</b> → <b>${select.end}</b></span>
+        <span style="display:flex;gap:6px;"><span class="sb-cancel" onclick="cancelPeriodSelect()">取消</span><span class="sb-confirm" onclick="confirmPeriodSelect()">✓ 确认</span></span></div>`;
+    }
   }
-  document.getElementById('modal-period').style.display='flex';
+
+  let html=`<div class="cal-header">
+    <button class="nav-btn" onclick="changePeriodMonth(${year},${month},-1)">◀</button>
+    <span class="month">${year}年 ${months[month]}</span>
+    <button class="nav-btn" onclick="changePeriodMonth(${year},${month},1)">▶</button>
+  </div>`;
+  if(selectBar) html+=selectBar;
+  html+='<div class="cal-grid period-cal">';
+  dows.forEach(d=>html+=`<div class="dow">${d}</div>`);
+
+  for(let i=firstDay-1;i>=0;i--) html+=`<div class="day other">${daysInPrev-i}</div>`;
+
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday=ds===todayStr;
+    let cls='day'; let dot=''; let onclick='';
+
+    // 选择模式下可点击
+    if(select&&select.active){
+      if(ds===select.start) cls+=' select-start';
+      else if(ds===select.end) cls+=' select-end';
+      else if(select.start&&select.end&&ds>select.start&&ds<select.end) cls+=' select-range';
+      onclick=`onclick="onPeriodDayClick('${ds}')"`;
+    }else{
+      onclick=`onclick="onPeriodDayClick('${ds}')"`;
+    }
+
+    if(isToday&&!select?.active) cls+=' today';
+    // 显示经期/易孕期/排卵日颜色（非选择模式下）
+    if(phases&&(!select||!select.active)){
+      if(ds>=phases.periodStart&&ds<=phases.periodEnd){ cls+=' p-period'; dot='<div class="dot"></div>'; }
+      else if(ds===phases.ovulationStr){ cls+=' p-ovulation'; }
+      else if(ds>=phases.fertileStart&&ds<=phases.fertileEnd){ cls+=' p-fertile'; dot='<div class="dot"></div>'; }
+    }
+
+    html+=`<div class="${cls}" ${onclick}>${d}${dot}</div>`;
+  }
+
+  const totalCells=firstDay+daysInMonth;
+  const remaining=totalCells%7===0?0:7-(totalCells%7);
+  for(let i=1;i<=remaining;i++) html+=`<div class="day other">${i}</div>`;
+  html+='</div>';
+
+  html+=`<div class="period-legend">
+    <span><span class="dot d-period"></span>经期</span>
+    <span><span class="dot d-fertile"></span>易孕期</span>
+    <span><span class="dot d-ovulation"></span>排卵日</span>
+    <span>🛡️ 安全期</span>
+  </div>`;
+
+  return html;
 }
 
-function savePeriod(){
-  const start=document.getElementById('ep-start').value;
-  const end=document.getElementById('ep-end').value;
-  const cycle=parseInt(document.getElementById('ep-cycle').value)||28;
-  const duration=parseInt(document.getElementById('ep-duration').value)||5;
+function startPeriodSelect(){
+  periodSelect={active:true,start:null,end:null};
+  renderPeriodPage();
+  updatePeriodHeader(true);
+}
 
-  if(!start||!end){ toast('请选择开始和结束日期'); return; }
-  if(end<start){ toast('结束日期不能早于开始日期'); return; }
-  if(cycle<18||cycle>45){ toast('周期天数范围18-45天'); return; }
-  if(duration<1||duration>14){ toast('经期持续天数范围1-14天'); return; }
+function cancelPeriodSelect(){
+  periodSelect={active:false,start:null,end:null};
+  renderPeriodPage();
+  updatePeriodHeader(false);
+}
 
-  periodCycle=cycle; periodDuration=duration;
-  // 检查是否已存在同开始日期的记录，覆盖
+function onPeriodDayClick(dateStr){
+  if(!periodSelect.active) return startPeriodSelect();
+
+  if(!periodSelect.start){
+    periodSelect.start=dateStr;
+    renderPeriodPage();
+  }else if(!periodSelect.end){
+    if(dateStr<periodSelect.start){ periodSelect.end=periodSelect.start; periodSelect.start=dateStr; }
+    else{ periodSelect.end=dateStr; }
+    renderPeriodPage();
+  }
+}
+
+function confirmPeriodSelect(){
+  if(!periodSelect.start||!periodSelect.end){ toast('请选择开始和结束日期'); return; }
+  const start=periodSelect.start; const end=periodSelect.end;
+
+  // 自动计算周期和经期天数（基于最近几次记录）
+  if(periods.length>=1){
+    const lastStart=periods[periods.length-1].start;
+    const s1=new Date(lastStart+'T00:00:00'); const s2=new Date(start+'T00:00:00');
+    const diff=Math.round((s2-s1)/86400000);
+    if(diff>=18&&diff<=45) periodCycle=diff;
+  }
+  const s=new Date(start+'T00:00:00'); const e=new Date(end+'T00:00:00');
+  const dur=Math.ceil((e-s)/86400000)+1;
+  if(dur>=1&&dur<=14) periodDuration=dur;
+
   const existIdx=periods.findIndex(p=>p.start===start);
   if(existIdx>=0){ periods[existIdx]={id:periods[existIdx].id,start,end}; }
   else{ periods.push({id:uid(),start,end}); }
-  // 按开始日期排序
   periods.sort((a,b)=>a.start.localeCompare(b.start));
-  persist(); renderPeriodPage(); closeModal('modal-period'); toast('经期记录已保存');
+
+  persist();
+  periodSelect={active:false,start:null,end:null};
+  renderPeriodPage();
+  updatePeriodHeader(false);
+  toast('经期记录已保存 ✓');
 }
+
+function changePeriodMonth(year,month,delta){
+  const el=document.getElementById('period-wrap');
+  let m=month+delta; let y=year;
+  if(m<0){ m=11; y--; } if(m>11){ m=0; y++; }
+
+  // 重新构建页面（不改变选择状态）
+  const sorted=[...periods].sort((a,b)=>b.start.localeCompare(a.start));
+  const last=sorted[0];
+  const phases=last?calcPeriodPhases(last.start,periodCycle,periodDuration):null;
+  const calHtml=renderPeriodCal(y,m,phases,periodSelect.active?periodSelect:null,!periods.length);
+
+  // 只更新日历部分
+  const existing=el.querySelector('.period-cal');
+  const existingBar=el.querySelector('.select-bar');
+  const calHeader=el.querySelector('.cal-header');
+  if(existing){
+    // 重建整个 period-wrap 内容但保留摘要和历史
+    renderPeriodPage();
+  }
+}
+
+function updatePeriodHeader(inSelect){
+  const btn=document.getElementById('period-add-btn');
+  if(inSelect){
+    btn.textContent='✕'; btn.style.color='#EC4899'; btn.title='取消选择';
+    btn.onclick=function(){ cancelPeriodSelect(); };
+  }else{
+    btn.textContent='＋'; btn.style.color=''; btn.title='点击日历选择日期登记';
+    btn.onclick=function(){ startPeriodSelect(); };
+  }
+}
+
+// 删除原有的 openPeriodModal / savePeriod 函数，保留 deletePeriod 和 clearPeriods
+function openPeriodModal(){} // 占位，保留兼容
+
+function savePeriod(){} // 占位
 
 function deletePeriod(id){
   if(!confirm('确定删除这条记录吗？')) return;
@@ -984,7 +1081,7 @@ renderAll();
     <p><b>8. 日历视图</b> — 底部导航切换至"日历"，有任务的日期显示圆点，点击查看当天事项。</p>
     <p><b>9. 分类管理</b> — 底部导航切换至"分类"，支持新增、编辑、删除分类。</p>
     <p><b>10. 批量导入</b> — 顶部 📥 按钮，每行一条任务粘贴导入。</p>
-    <p><b>11. 经期管理</b> — 底部导航切换至"经期"，登记开始/结束日期，自动计算安全期、易孕期、排卵日和下次月经预测。</p>
+    <p><b>11. 经期管理</b> — 底部导航切换至"经期"，点击日历日期选择月经开始日和结束日，自动计算安全期、易孕期、排卵日。</p>
     <p><b>12. 数据持久化</b> — 所有数据存储在浏览器本地，关闭/刷新页面不丢失。</p>
     <button onclick="closeTutorial()" style="margin-top:16px;width:100%;padding:12px;border-radius:99px;background:var(--brand);color:#fff;font-weight:600;font-size:15px;">知道了</button>
   </div>
