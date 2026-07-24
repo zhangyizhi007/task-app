@@ -851,7 +851,9 @@ function renderPeriodPage(){
         <div class="ps-item"><div class="v">${periodDuration}</div><div class="l">经期天数</div></div>
         <div class="ps-item"><div class="v">${Math.max(0,daysToNext)}</div><div class="l">距下次</div></div>
       </div>
-      <div class="ps-next">📅 预计下次月经：${phases.nextCycleStart}（距今${daysToNext}天）</div>
+      <div class="ps-next">📅 预计下次月经：${phases.nextCycleStart}（距今${daysToNext}天）
+        <span style="margin-left:8px;font-size:12px;color:var(--brand);" onclick="exportPeriodToCalendar('${phases.nextCycleStart}')">📲 导入日历提醒</span>
+      </div>
     </div>
     ${calHtml}
     <div style="margin-top:14px;font-weight:600;font-size:15px;color:var(--ink);">📋 历史记录</div>
@@ -1035,6 +1037,60 @@ function deletePeriod(id){
   if(!confirm('确定删除这条记录吗？')) return;
   periods=periods.filter(p=>p.id!==id);
   persist(); renderPeriodPage(); toast('记录已删除');
+}
+
+// ========== 导出日历提醒 (.ics) ==========
+function exportPeriodToCalendar(nextDateStr){
+  const d=new Date(nextDateStr+'T00:00:00');
+  // 提醒日期 = 预计月经前1天 上午9点
+  const remindDate=new Date(d); remindDate.setDate(remindDate.getDate()-1);
+  const pad=n=>String(n).padStart(2,'0');
+  const fmtICS=(dt)=>{
+    return dt.getFullYear()+pad(dt.getMonth()+1)+pad(dt.getDate())+'T090000';
+  };
+
+  const now=new Date();
+  const nowStr=now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'T'+pad(now.getHours())+pad(now.getMinutes())+pad(now.getSeconds())+'Z';
+  const startStr=fmtICS(remindDate);
+  const endStr=fmtICS(remindDate).replace('T090000','T093000');
+  const uid=Date.now()+'@period-tracker';
+
+  const ics=`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Period Tracker//CN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+DTSTART:${startStr}
+DTEND:${endStr}
+DTSTAMP:${nowStr}
+UID:${uid}
+SUMMARY:🌸 月经预计明天到来
+DESCRIPTION:预计月经日期：${nextDateStr}\\n周期：${periodCycle}天，经期持续：${periodDuration}天\\n提前做好准备哦～
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:🌸 月经预计明天到来，提前做好准备！
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='月经提醒_'+nextDateStr+'.ics';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // 显示操作指引
+  setTimeout(()=>{
+    const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+    const isAndroid=/Android/.test(navigator.userAgent);
+    let guide='';
+    if(isIOS) guide='请在弹窗中选择"添加到日历"即可';
+    else if(isAndroid) guide='请在下载完成后打开文件，选择"日历"打开并添加';
+    else guide='请用日历应用打开下载的 .ics 文件即可导入';
+    toast('📲 '+guide);
+  },600);
 }
 
 function clearPeriods(){
