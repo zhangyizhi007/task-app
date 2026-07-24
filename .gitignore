@@ -1,0 +1,4 @@
+# Ignore everything except task-app.html
+*
+!task-app.html
+!.gitignore
