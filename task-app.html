@@ -1323,6 +1323,7 @@ document.getElementById('period-header-btns').addEventListener('click', function
 renderAll();
 
 // 任务管理标题实时时钟
+let weatherEmoji='☀️';
 function updateTaskHeaderTime(){
   const now=new Date();
   const h=now.getHours();
@@ -1336,10 +1337,24 @@ function updateTaskHeaderTime(){
   else greet='夜深了';
   const pad=n=>String(n).padStart(2,'0');
   const timeStr=pad(now.getHours())+':'+pad(now.getMinutes());
-  document.getElementById('task-header-title').textContent=greet+' '+timeStr;
+  document.getElementById('task-header-title').textContent=weatherEmoji+' '+greet+' '+timeStr;
 }
+
+// 获取天气
+function fetchWeather(){
+  // 使用 wttr.in 免费天气 API，根据 IP 自动定位
+  fetch('https://wttr.in/?format=%C&lang=zh',{cache:'no-cache'})
+    .then(r=>r.text()).then(code=>{
+      const w=code.trim();
+      if(w&&w.length<=4) weatherEmoji=w;
+      updateTaskHeaderTime();
+    }).catch(()=>{});
+}
+fetchWeather();
 updateTaskHeaderTime();
 setInterval(updateTaskHeaderTime,30000);
+// 每30分钟刷新天气
+setInterval(fetchWeather,1800000);
 </script>
 
 <!-- 使用教程浮层 -->
