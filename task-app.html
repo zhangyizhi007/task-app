@@ -262,7 +262,7 @@ button{touch-action:manipulation;cursor:pointer;}
   <!-- Page 0: Home -->
   <div id="page-home" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
     <div class="header">
-      <h1>📋 任务管理</h1>
+      <h1 id="task-header-title">📋 任务管理</h1>
       <div class="right">
         <button class="btn" onclick="openBatch()" title="批量导入">📥</button>
       </div>
@@ -1199,6 +1199,25 @@ document.getElementById('period-header-btns').addEventListener('click', function
 });
 
 renderAll();
+
+// 任务管理标题实时时钟
+function updateTaskHeaderTime(){
+  const now=new Date();
+  const h=now.getHours();
+  let greet='';
+  if(h<6) greet='凌晨好';
+  else if(h<9) greet='早上好';
+  else if(h<12) greet='上午好';
+  else if(h<14) greet='中午好';
+  else if(h<18) greet='下午好';
+  else if(h<22) greet='晚上好';
+  else greet='夜深了';
+  const pad=n=>String(n).padStart(2,'0');
+  const timeStr=pad(now.getHours())+':'+pad(now.getMinutes());
+  document.getElementById('task-header-title').textContent=greet+' '+timeStr;
+}
+updateTaskHeaderTime();
+setInterval(updateTaskHeaderTime,30000);
 </script>
 
 <!-- 使用教程浮层 -->
