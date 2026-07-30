@@ -24,6 +24,15 @@
   .banner-edit button:hover{background:rgba(0,0,0,.7)}
   .banner-edit input[type=file]{display:none}
 
+  /* ===== 点单页搜索框（右上角） ===== */
+  .order-search{padding:10px 16px 0;display:flex;justify-content:flex-end;background:#fff}
+  .os-box{position:relative;display:flex;align-items:center;width:min(320px,100%);background:#f5f6f8;border:1px solid var(--line);border-radius:22px;padding:0 12px;transition:.2s}
+  .os-box:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(22,160,133,.12)}
+  .os-ico{font-size:14px;opacity:.6;margin-right:6px}
+  .os-box input{flex:1;min-width:0;border:none;outline:none;background:transparent;padding:10px 0;font-size:14px;color:#333}
+  .os-clear{border:none;background:transparent;color:#999;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:50%;line-height:1}
+  .os-clear:hover{background:#eaecef;color:#555}
+
   /* ===== 左侧分类导航 + 右侧商品区（点单页专用） ===== */
   .order-layout{display:flex;gap:0;min-height:calc(100vh - 84px - 56px)}
   .cat-nav{width:90px;flex-shrink:0;background:#f7f7f7;overflow-y:auto;position:sticky;top:84px;height:calc(100vh - 84px - 56px)}
@@ -221,6 +230,13 @@
 
   <!-- ============ 点单页（左右布局） ============ -->
   <div class="page active" id="page-order">
+    <div class="order-search">
+      <div class="os-box">
+        <span class="os-ico">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索商品名称 / 分类…" oninput="setSearch(this.value)" autocomplete="off">
+        <button class="os-clear" id="searchClear" onclick="clearSearch()" style="display:none">✕</button>
+      </div>
+    </div>
     <div class="order-layout" id="orderLayout">
       <!-- 左侧分类 -->
       <nav class="cat-nav" id="catNav"></nav>
@@ -420,6 +436,7 @@ let products = [];
 let orders = [];
 let cart = {};
 let curFilter = '全部';
+let searchKw = '';
 let curPage = 'order';
 let lastOrder = null;
 const LS_SHOPS = 'order_app_shops_v2';
@@ -665,8 +682,13 @@ function render(){
   // datalist
   document.getElementById('catList').innerHTML=cats.filter(c=>c!=='全部').map(c=>`<option value="${c}">`).join('');
 
-  // 商品列表
-  const list=products.filter(p=>curFilter==='全部'||p.cat===curFilter);
+  // 商品列表（分类 + 搜索关键词双重过滤）
+  const kw=searchKw.toLowerCase();
+  const list=products.filter(p=>{
+    if(!(curFilter==='全部'||p.cat===curFilter)) return false;
+    if(!kw) return true;
+    return p.name.toLowerCase().includes(kw) || p.cat.toLowerCase().includes(kw);
+  });
   const area=document.getElementById('productArea');
   const empty=document.getElementById('emptyTip');
   const layout=document.getElementById('orderLayout');
@@ -675,7 +697,10 @@ function render(){
     layout.style.display='none'; empty.style.display='block'; empty.textContent='还没有商品，先在「菜品」页添加吧～'; return;
   }
   layout.style.display='flex';
-  if(!list.length){ area.innerHTML='<div style="color:var(--muted);padding:30px 0;text-align:center">该种类下暂无商品</div>'; return; }
+  if(!list.length){
+    const tip=searchKw?`未找到与「${searchKw}」相关的商品`:'该种类下暂无商品';
+    area.innerHTML=`<div style="color:var(--muted);padding:30px 0;text-align:center">${tip}</div>`; return;
+  }
   empty.style.display='none';
 
   // 按分类分组渲染
@@ -733,6 +758,20 @@ function render(){
 }
 
 function setFilter(c){ curFilter=c; render(); }
+
+function setSearch(v){
+  searchKw=v.trim();
+  document.getElementById('searchClear').style.display=searchKw?'block':'none';
+  render();
+}
+
+function clearSearch(){
+  searchKw='';
+  const inp=document.getElementById('searchInput');
+  if(inp) inp.value='';
+  document.getElementById('searchClear').style.display='none';
+  render();
+}
 
 function updateStats(){
   const cnt=Object.values(cart).reduce((a,b)=>a+b,0);
