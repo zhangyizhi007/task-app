@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点单小程序</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --primary:#ff6b35; --primary-d:#e85a28;
+    --text:#222; --muted:#888; --line:#eee; --green:#2ecc71; --shadow:0 2px 12px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:90px}
+  /* Hero */
+  .hero{background:linear-gradient(135deg,#ff6b35,#ff8c42);color:#fff;padding:28px 20px;text-align:center}
+  .hero h1{font-size:22px;margin-bottom:8px}
+  .hero .stats{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin-top:14px}
+  .hero .stat{min-width:80px}
+  .hero .stat .num{font-size:26px;font-weight:700}
+  .hero .stat .lbl{font-size:12px;opacity:.9}
+  .hero .stat .num.hl{color:#fff7cc}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  /* 表单 */
+  .panel{background:var(--card);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:22px}
+  .panel h2{font-size:16px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .panel h2::before{content:"";width:4px;height:16px;background:var(--primary);border-radius:2px;display:inline-block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:13px;color:var(--muted)}
+  .field input,.field select{padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;outline:none;transition:.2s}
+  .field input:focus,.field select:focus{border-color:var(--primary)}
+  .file-btn{display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:10px;border:1.5px dashed var(--primary);color:var(--primary);border-radius:9px;cursor:pointer;font-size:13px;background:#fff7f3}
+  .file-btn input{display:none}
+  .btn{padding:11px 22px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{background:var(--primary-d)}
+  .btn-ghost{background:#f0f0f0;color:#555}
+  .form-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  /* 筛选 */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{padding:7px 16px;border:1px solid var(--line);border-radius:20px;font-size:13px;cursor:pointer;background:#fff;transition:.2s}
+  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  /* 产品卡片网格 */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+  .pcard{background:var(--card);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;transition:.2s}
+  .pcard:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.1)}
+  .pcard .img{width:100%;height:140px;object-fit:cover;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+  .pcard .body{padding:12px;flex:1;display:flex;flex-direction:column;gap:6px}
+  .pcard .pname{font-weight:600;font-size:15px}
+  .pcard .ptag{font-size:11px;color:var(--primary);background:#fff0e8;padding:2px 8px;border-radius:10px;align-self:flex-start}
+  .pcard .price{color:var(--primary);font-weight:700;font-size:17px}
+  .pcard .price small{font-size:12px;font-weight:400;color:var(--muted)}
+  .pcard .stock{font-size:12px;margin-top:2px}
+  .pcard .stock.ok{color:var(--muted)}
+  .pcard .stock.warn{color:#e67e22;font-weight:600}
+  .pcard .stock.out{color:#e74c3c;font-weight:700}
+  .pcard.soldout{opacity:.7}
+  .add:disabled{background:#ccc;cursor:not-allowed}
+  .pcard .ops{display:flex;gap:8px;margin-top:auto;padding-top:6px}
+  .pcard .ops button{flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600}
+  .qty{display:flex;align-items:center;justify-content:center;gap:10px;flex:1}
+  .qty button{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:16px;cursor:pointer}
+  .qty span{min-width:20px;text-align:center;font-weight:700}
+  .del{background:#ffe9e9;color:#e74c3c}
+  .add{background:var(--primary);color:#fff}
+  /* 购物车底部栏 */
+  .cartbar{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -3px 16px rgba(0,0,0,.1);padding:12px 18px;display:flex;align-items:center;gap:14px;max-width:1100px;margin:0 auto}
+  .cartbar .info{flex:1}
+  .cartbar .info .cnt{font-size:13px;color:var(--muted)}
+  .cartbar .info .total{font-size:20px;font-weight:700;color:var(--primary)}
+  .cartbar .info .total small{font-size:12px;color:var(--muted);font-weight:400}
+  .cartbar .btns{display:flex;gap:10px}
+  .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
+  /* 订单弹窗 */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal.show{display:flex}
+  .modal-box{background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:22px}
+  .modal-box h3{font-size:18px;margin-bottom:14px}
+  .order-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .order-sum{display:flex;justify-content:space-between;font-size:18px;font-weight:700;margin:14px 0;color:var(--primary)}
+  .order-meta{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .modal-actions .btn{flex:1;min-width:110px}
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;z-index:99}
+  .toast.show{opacity:1}
+  /* 小票（打印区） */
+  .receipt{border:1px dashed var(--line);border-radius:10px;padding:14px;margin:4px 0 14px;background:#fff}
+  /* 历史订单 */
+  .today-bar{display:flex;gap:14px;flex-wrap:wrap;background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;border-radius:14px;padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .today-bar .tb{flex:1;min-width:120px}
+  .today-bar .tb .n{font-size:24px;font-weight:700}
+  .today-bar .tb .l{font-size:12px;opacity:.92}
+  .hist-list{display:flex;flex-direction:column;gap:10px}
+  .hist-item{background:#fff;border-radius:12px;padding:14px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .hist-item .hi-l .hi-time{font-size:12px;color:var(--muted)}
+  .hist-item .hi-l .hi-no{font-size:11px;color:var(--muted);margin-top:2px}
+  .hist-item .hi-l .hi-items{font-size:13px;margin-top:6px;line-height:1.6}
+  .hist-item .hi-r{text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .hist-item .hi-r .hi-total{font-size:18px;font-weight:700;color:var(--primary)}
+  .hist-item .hi-r button{padding:6px 14px;font-size:12px;border:none;border-radius:8px;cursor:pointer;background:#f0f0f0;color:#555}
+  .hist-item .hi-r .exp{background:var(--primary);color:#fff}
+  .compressing{font-size:12px;color:var(--primary);margin-top:6px;min-height:16px}
+  /* 历史订单筛选条 */
+  .hist-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .hist-toolbar .field{display:flex;align-items:center;gap:8px}
+  .hist-toolbar label{font-size:13px;color:var(--muted)}
+  .hist-toolbar input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;outline:none}
+  .hist-toolbar input[type=date]:focus{border-color:var(--primary)}
+  .hist-toolbar .btn{padding:8px 16px;font-size:13px}
+  .hist-toolbar .spacer{flex:1}
+  /* 月度汇总 */
+  .month-bar{display:flex;gap:14px;flex-wrap:wrap;background:linear-gradient(135deg,#5b6ef5,#7b5bf5);color:#fff;border-radius:14px;padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .month-bar .mb{flex:1;min-width:120px}
+  .month-bar .mb .n{font-size:24px;font-weight:700}
+  .month-bar .mb .l{font-size:12px;opacity:.92}
+  .rank-list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .rank-item{display:flex;align-items:center;gap:10px;font-size:13px}
+  .rank-item .rk{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .rank-item .rk.g{background:#bbb}
+  .rank-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rank-item .bar{height:8px;background:#eef;flex-shrink:0;border-radius:4px;min-width:4px}
+  .rank-item .val{width:88px;text-align:right;color:var(--muted);flex-shrink:0}
+  .months-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:6px}
+  .month-card{background:#fafaff;border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;transition:.2s}
+  .month-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+  .month-card.active{border-color:var(--primary);background:#fff7f3}
+  .month-card .mc-m{font-weight:700;font-size:15px}
+  .month-card .mc-s{font-size:12px;color:var(--muted);margin-top:4px}
+  .month-card .mc-t{color:var(--primary);font-weight:700;margin-top:6px}
+  /* 数据备份 */
+  .backup-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px dashed var(--line);border-radius:14px;padding:14px 18px;margin-bottom:18px}
+  .backup-bar .bk-tip{font-size:12px;color:var(--muted);flex:1;min-width:160px}
+  .backup-bar .btn{padding:9px 18px;font-size:13px}
+  .backup-bar input[type=file]{display:none}
+  /* 店铺切换 */
+  .shop-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .shop-bar .shop-tabs{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+  .shop-tab{padding:7px 16px;border:1px solid var(--line);border-radius:20px;font-size:13px;cursor:pointer;background:#fafafa;transition:.2s;display:flex;align-items:center;gap:6px}
+  .shop-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .shop-tab .x{font-size:12px;opacity:.7;cursor:pointer}
+  .shop-tab .x:hover{opacity:1}
+  .shop-bar .btn{padding:8px 16px;font-size:13px}
+  .receipt .r-head{text-align:center;border-bottom:1px dashed var(--line);padding-bottom:8px;margin-bottom:8px}
+  .receipt .r-head .title{font-weight:700;font-size:16px}
+  .receipt .r-head .meta{font-size:11px;color:var(--muted);margin-top:4px}
+  .receipt .r-item{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}
+  .receipt .r-item .nm{flex:1}
+  .receipt .r-item .qt{color:var(--muted);margin:0 10px}
+  .receipt .r-sum{display:flex;justify-content:space-between;font-weight:700;font-size:15px;border-top:1px dashed var(--line);padding-top:8px;margin-top:6px}
+  /* 打印样式 */
+  @media print{
+    body *{visibility:hidden}
+    #printArea,#printArea *{visibility:visible}
+    #printArea{position:absolute;left:0;top:0;width:100%;padding:10px}
+    .cartbar,.hero,.wrap,.modal-actions,.toast{display:none!important}
+    .receipt{border:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🍜 点单小程序</h1>
+  <p>添加商品 · 选种类定价 · 一键下单自动算总价</p>
+  <div class="stats">
+    <div class="stat"><div class="num" id="statCount">0</div><div class="lbl">商品种类</div></div>
+    <div class="stat"><div class="num" id="statCart">0</div><div class="lbl">购物车件数</div></div>
+    <div class="stat"><div class="num" id="statTotal">¥0</div><div class="lbl">当前总价</div></div>
+    <div class="stat"><div class="num hl" id="statTodayOrders">0</div><div class="lbl">今日订单</div></div>
+    <div class="stat"><div class="num hl" id="statTodaySales">¥0</div><div class="lbl">今日营业额</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- 店铺切换 -->
+  <div class="shop-bar">
+    <div class="shop-tabs" id="shopTabs"></div>
+    <button class="btn btn-ghost" onclick="addShop()">+ 新店铺</button>
+  </div>
+
+  <!-- 版块一：添加商品 -->
+  <div class="panel">
+    <h2>添加商品</h2>
+    <div class="grid">
+      <div class="field">
+        <label>商品图片</label>
+        <label class="file-btn">📷 选择图片
+          <input type="file" id="pImg" accept="image/*" onchange="handleImg(this)">
+        </label>
+        <div class="compressing" id="compressTip"></div>
+      </div>
+      <div class="field">
+        <label>商品名称</label>
+        <input type="text" id="pName" placeholder="如：招牌牛肉面">
+      </div>
+      <div class="field">
+        <label>种类</label>
+        <input type="text" id="pCat" list="catList" placeholder="如：主食 / 饮品">
+        <datalist id="catList"></datalist>
+      </div>
+      <div class="field">
+        <label>价格（元）</label>
+        <input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>库存（份，留空=不限制）</label>
+        <input type="number" id="pStock" min="0" step="1" placeholder="如：50">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="addProduct()">+ 加入菜单</button>
+      <button class="btn btn-ghost" onclick="clearProducts()">清空菜单</button>
+    </div>
+  </div>
+
+  <!-- 版块二：种类筛选 -->
+  <div class="filters" id="filters"></div>
+
+  <!-- 版块三：商品列表 -->
+  <div class="cards" id="cards"></div>
+  <div class="empty" id="emptyTip" style="display:none">还没有商品，先在上方添加吧～</div>
+
+  <!-- 版块四：数据备份 -->
+  <div class="panel">
+    <h2>数据备份与恢复</h2>
+    <div class="backup-bar">
+      <span class="bk-tip">将菜单与历史订单打包成一份 JSON，可存档或迁移到其他设备；导入会覆盖当前本地数据。</span>
+      <button class="btn btn-ghost" onclick="exportBackup()">⬇ 导出备份</button>
+      <label class="btn btn-primary" style="cursor:pointer">⬆ 导入恢复
+        <input type="file" id="backupFile" accept="application/json,.json" onchange="importBackup(this)">
+      </label>
+    </div>
+  </div>
+
+  <!-- 版块五：月度汇总 -->
+  <div class="panel">
+    <h2>月度汇总</h2>
+    <div class="month-bar">
+      <div class="mb"><div class="n" id="mOrders">0</div><div class="l">当前月订单</div></div>
+      <div class="mb"><div class="n" id="mSales">¥0.00</div><div class="l">当前月营业额</div></div>
+      <div class="mb"><div class="n" id="mAvg">¥0.00</div><div class="l">月日均营业额</div></div>
+      <div class="mb"><div class="n" id="mBest">—</div><div class="l">最畅销商品</div></div>
+    </div>
+    <div class="months-grid" id="monthsGrid"></div>
+    <div style="margin-top:14px;font-size:14px;font-weight:600">🏆 当月商品排行（按销售额）</div>
+    <div class="rank-list" id="rankList"></div>
+    <div class="empty" id="monthEmpty" style="display:none">暂无订单数据～</div>
+  </div>
+
+  <!-- 版块五：今日营业 + 历史订单 -->
+  <div class="today-bar">
+    <div class="tb"><div class="n" id="todayOrders">0</div><div class="l">今日订单数</div></div>
+    <div class="tb"><div class="n" id="todaySales">¥0.00</div><div class="l">今日营业额</div></div>
+    <div class="tb"><div class="n" id="allOrders">0</div><div class="l">历史总订单</div></div>
+    <div class="tb"><div class="n" id="allSales">¥0.00</div><div class="l">历史总营业额</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>历史订单</h2>
+    <div class="hist-toolbar">
+      <div class="field">
+        <label>日期</label>
+        <input type="date" id="filterDate" onchange="renderHistory()">
+      </div>
+      <button class="btn btn-ghost" onclick="clearDateFilter()">全部日期</button>
+      <div class="spacer"></div>
+      <span class="cnt" id="filterCount" style="font-size:13px;color:var(--muted)"></span>
+      <button class="btn btn-primary" onclick="exportCSV()">⬇ 导出全部 CSV</button>
+    </div>
+    <div class="hist-list" id="histList"></div>
+    <div class="empty" id="histEmpty">还没有提交过订单～</div>
+  </div>
+
+</div>
+
+<!-- 购物车底部栏 -->
+<div class="cartbar">
+  <div class="info">
+    <div class="cnt" id="cartCnt">购物车：0 件</div>
+    <div class="total">¥<span id="cartTotal">0.00</span> <small>合计</small></div>
+  </div>
+  <div class="btns">
+    <button class="btn btn-ghost" onclick="clearCart()">清空</button>
+    <button class="btn btn-primary" onclick="submitOrder()">提交订单</button>
+  </div>
+</div>
+
+<!-- 订单弹窗 -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3>✅ 订单提交成功</h3>
+    <div class="order-meta" id="orderMeta"></div>
+    <div class="receipt" id="printArea">
+      <div class="r-head">
+        <div class="title" id="rTitle">点单小程序</div>
+        <div class="meta" id="orderMeta2"></div>
+      </div>
+      <div id="orderList"></div>
+      <div class="r-sum"><span>合计</span><span>¥<span id="orderTotal">0.00</span></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">关闭</button>
+      <button class="btn btn-primary" onclick="printReceipt()">🖨 打印小票</button>
+      <button class="btn btn-ghost" onclick="exportOrder()">⬇ 导出订单</button>
+      <button class="btn btn-primary" onclick="newOrder()">再来一单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 隐藏：打印时独立渲染区 -->
+<div id="printOnly" style="display:none"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let shops = [];       // [{id,name,products:[],orders:[]}]
+let curShopId = '';
+let products = [];   // 当前店铺商品（派生）
+let orders = [];     // 当前店铺订单（派生）
+let cart = {};       // id -> qty
+let curFilter = '全部';
+let lastOrder = null; // 最近一次订单，用于导出
+const LS_SHOPS = 'order_app_shops_v2';
+const LS_CUR = 'order_app_curshop_v1';
+
+// 取当前店铺对象
+function curShop(){ return shops.find(s=>s.id===curShopId) || shops[0]; }
+// 保存所有店铺
+function saveShops(){
+  try{ localStorage.setItem(LS_SHOPS, JSON.stringify(shops)); }
+  catch(e){ console.warn('保存失败（可能图片过大）', e); toast('保存失败：数据过大'); }
+}
+// 本地保存：读取（含旧版扁平数据迁移）
+function loadShops(){
+  try{
+    const raw=localStorage.getItem(LS_SHOPS);
+    if(raw){ shops=JSON.parse(raw); }
+    else{
+      // 旧版迁移：从 v1 的 products/orders 合并进“总店”
+      let oldP=[], oldO=[];
+      try{ const p=localStorage.getItem('order_app_products_v1'); if(p) oldP=JSON.parse(p); }catch(e){}
+      try{ const o=localStorage.getItem('order_app_orders_v1'); if(o) oldO=JSON.parse(o); }catch(e){}
+      if(oldP.length||oldO.length){
+        shops=[{id:'shop_default', name:'总店', products:oldP, orders:oldO}];
+        saveShops();
+      }
+    }
+  }catch(e){ console.warn('读取店铺失败', e); }
+  if(!shops.length){ shops=[{id:'shop_'+Date.now(), name:'总店', products:[], orders:[]}]; }
+  // 恢复当前店铺
+  const cid=localStorage.getItem(LS_CUR);
+  curShopId=(cid && shops.find(s=>s.id===cid))?cid:shops[0].id;
+  syncCur();
+}
+// 同步派生变量到当前店铺
+function syncCur(){
+  const s=curShop();
+  products=s.products; orders=s.orders;
+}
+// 保存当前店铺（写回 shops 再存）
+function saveProducts(){ const s=curShop(); s.products=products; saveShops(); }
+function saveOrders(){ const s=curShop(); s.orders=orders; saveShops(); }
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1600);
+}
+
+function fmt(n){ return n.toFixed(2); }
+
+// 图片自动压缩：压到 ≤1MB（极端情况放宽到 ≤2MB），保持为 base64 dataURL
+function compressImage(file){
+  return new Promise((resolve)=>{
+    const MAX1=1*1024*1024, MAX2=2*1024*1024;
+    const tip=document.getElementById('compressTip');
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        // 先用原图尺寸试一次，若已满足则直接返回
+        const tryCompress=(maxBytes)=>{
+          let w=img.width, h=img.height;
+          // 超长边限制，避免超大图
+          const LONG=1600;
+          if(Math.max(w,h)>LONG){ const r=LONG/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+          const canvas=document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          let q=0.92;
+          let out=canvas.toDataURL('image/jpeg',q);
+          while(out.length>maxBytes && q>0.3){
+            q-=0.08;
+            out=canvas.toDataURL('image/jpeg',q);
+          }
+          return {out,size:out.length};
+        };
+        const raw=img.src.length;
+        if(raw<=MAX1){ tip.textContent='原图已满足大小，无需压缩'; resolve(img.src); return; }
+        let r1=tryCompress(MAX1);
+        if(r1.size<=MAX1){ tip.textContent=`已压缩至 ${(r1.size/1024/1024).toFixed(2)}MB`; resolve(r1.out); return; }
+        let r2=tryCompress(MAX2);
+        tip.textContent=`已压缩至 ${(r2.size/1024/1024).toFixed(2)}MB（≤2MB）`;
+        resolve(r2.out);
+      };
+      img.onerror=()=>{ tip.textContent='图片读取失败'; resolve(''); };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+// 选择图片后即时压缩预览（不阻塞添加，添加时取最新值）
+let pendingImg='';
+async function handleImg(input){
+  const tip=document.getElementById('compressTip');
+  const file=input.files[0];
+  if(!file){ pendingImg=''; tip.textContent=''; return; }
+  tip.textContent='压缩中…';
+  pendingImg=await compressImage(file);
+}
+
+// 判断是否为“今天”
+function isToday(ts){
+  const d=new Date(ts), n=new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+
+function addProduct(){
+  const name=document.getElementById('pName').value.trim();
+  const cat=document.getElementById('pCat').value.trim()||'其他';
+  const price=parseFloat(document.getElementById('pPrice').value);
+  const stockRaw=document.getElementById('pStock').value.trim();
+  const stock=stockRaw===''?null:parseInt(stockRaw,10);
+  if(!name){ toast('请填写商品名称'); return; }
+  if(isNaN(price)||price<0){ toast('请填写有效价格'); return; }
+  if(stock!==null && (isNaN(stock)||stock<0)){ toast('请填写有效库存'); return; }
+  const p={id:Date.now()+''+Math.floor(Math.random()*1000),name,cat,price,stock,img:pendingImg||''};
+  pendingImg='';
+  document.getElementById('compressTip').textContent='';
+  finishAdd(p);
+}
+function finishAdd(p){
+  products.push(p);
+  saveProducts();
+  // 重置表单
+  document.getElementById('pName').value='';
+  document.getElementById('pCat').value='';
+  document.getElementById('pPrice').value='';
+  document.getElementById('pStock').value='';
+  document.getElementById('pImg').value='';
+  render();
+  toast('已添加：'+p.name);
+}
+
+function clearProducts(){
+  if(!products.length) return;
+  if(confirm('确定清空【'+curShop().name+'】的所有商品？已加入购物车的也会清空。')){
+    products=[]; cart={}; saveProducts(); render(); toast('菜单已清空');
+  }
+}
+
+function changeQty(id,d){
+  const p=products.find(x=>x.id===id);
+  let q=(cart[id]||0)+d;
+  if(q<=0){ delete cart[id]; render(); return; }
+  // 库存上限校验
+  if(p && p.stock!==null && q>p.stock){ toast('「'+p.name+'」库存仅剩 '+p.stock+' 份'); return; }
+  cart[id]=q;
+  render();
+}
+
+function removeProduct(id){
+  products=products.filter(p=>p.id!==id);
+  delete cart[id];
+  saveProducts();
+  render();
+}
+
+function clearCart(){ cart={}; render(); toast('购物车已清空'); }
+
+function render(){
+  // 店铺切换标签
+  const st=document.getElementById('shopTabs');
+  st.innerHTML=shops.map(s=>`<span class="shop-tab ${s.id===curShopId?'active':''}" onclick="switchShop('${s.id}')">
+    🏪 ${s.name}${shops.length>1?`<span class="x" onclick="event.stopPropagation();delShop('${s.id}')">✕</span>`:''}
+  </span>`).join('');
+  // 种类筛选
+  const cats=['全部',...new Set(products.map(p=>p.cat))];
+  const fEl=document.getElementById('filters');
+  fEl.innerHTML=cats.map(c=>`<span class="chip ${c===curFilter?'active':''}" onclick="setFilter('${c}')">${c}</span>`).join('');
+  // datalist
+  document.getElementById('catList').innerHTML=cats.filter(c=>c!=='全部').map(c=>`<option value="${c}">`).join('');
+  // 卡片
+  const list=products.filter(p=>curFilter==='全部'||p.cat===curFilter);
+  const cEl=document.getElementById('cards');
+  const empty=document.getElementById('emptyTip');
+  if(!products.length){ empty.style.display='block'; empty.textContent='还没有商品，先在上方添加吧～'; }
+  else if(!list.length){ empty.style.display='block'; empty.textContent='该种类下暂无商品'; }
+  else empty.style.display='none';
+  cEl.innerHTML=list.map(p=>{
+    const q=cart[p.id]||0;
+    const img=p.img?`<img class="img" src="${p.img}" alt="${p.name}">`:`<div class="img">🍽️ 无图</div>`;
+    // 库存状态
+    let stockHtml='', soldout=false;
+    if(p.stock===null){ stockHtml=`<div class="stock ok">库存：不限</div>`; }
+    else if(p.stock<=0){ stockHtml=`<div class="stock out">已售罄</div>`; soldout=true; }
+    else if(p.stock<=5){ stockHtml=`<div class="stock warn">库存紧张：仅 ${p.stock} 份</div>`; }
+    else { stockHtml=`<div class="stock ok">库存：${p.stock} 份</div>`; }
+    const addBtn=soldout
+      ? `<button class="add" style="flex:1" disabled>已售罄</button>`
+      : (q>0
+        ? `<div class="qty"><button onclick="changeQty('${p.id}',-1)">−</button><span>${q}</span><button onclick="changeQty('${p.id}',1)">+</button></div>`
+        : `<button class="add" style="flex:1" onclick="changeQty('${p.id}',1)">加入购物车</button>`);
+    const ops=`${addBtn}<button class="del" onclick="removeProduct('${p.id}')">删除</button>`;
+    return `<div class="pcard ${soldout?'soldout':''}">${img}
+      <div class="body">
+        <span class="ptag">${p.cat}</span>
+        <div class="pname">${p.name}</div>
+        <div class="price">¥${fmt(p.price)} <small>/份</small></div>
+        ${stockHtml}
+        <div class="ops">${ops}</div>
+      </div></div>`;
+  }).join('');
+  updateStats();
+  renderHistory();
+}
+
+function setFilter(c){ curFilter=c; render(); }
+
+function updateStats(){
+  const cnt=Object.values(cart).reduce((a,b)=>a+b,0);
+  const total=Object.entries(cart).reduce((s,[id,q])=>{
+    const p=products.find(x=>x.id===id); return s+(p?p.price*q:0);
+  },0);
+  document.getElementById('statCount').textContent=products.length;
+  document.getElementById('statCart').textContent=cnt;
+  document.getElementById('statTotal').textContent='¥'+fmt(total);
+  document.getElementById('cartCnt').textContent='购物车：'+cnt+' 件';
+  document.getElementById('cartTotal').textContent=fmt(total);
+}
+
+function submitOrder(){
+  const items=Object.entries(cart).map(([id,q])=>{
+    const p=products.find(x=>x.id===id);
+    return {name:p.name,cat:p.cat,price:p.price,qty:q,sub:p.price*q};
+  });
+  if(!items.length){ toast('购物车是空的'); return; }
+  const total=items.reduce((s,i)=>s+i.sub,0);
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const bj=`${now.getFullYear()}年${pad(now.getMonth()+1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}（北京时间）`;
+  const orderNo=now.getTime();
+  lastOrder={time:bj, orderNo, items, total};
+  document.getElementById('orderMeta').textContent='下单时间：'+bj;
+  document.getElementById('orderMeta2').textContent='订单号：'+orderNo+'　'+bj;
+  document.getElementById('orderList').innerHTML=items.map(i=>
+    `<div class="r-item"><span class="nm">${i.name} <small style="color:#888">[${i.cat}]</small></span><span class="qt">×${i.qty}</span><span>¥${fmt(i.sub)}</span></div>`
+  ).join('');
+  document.getElementById('orderTotal').textContent=fmt(total);
+  document.getElementById('modal').classList.add('show');
+  // 扣减库存（按商品 id 精确匹配）
+  Object.entries(cart).forEach(([id,q])=>{
+    const p=products.find(x=>x.id===id);
+    if(p && p.stock!==null){ p.stock=Math.max(0,p.stock-q); }
+  });
+  // 存入历史订单
+  orders.unshift({time:bj, ts:orderNo, orderNo, items, total});
+  saveProducts(); saveOrders();
+}
+
+// 渲染历史订单 + 统计（支持按日期过滤）
+function renderHistory(){
+  const list=document.getElementById('histList');
+  const empty=document.getElementById('histEmpty');
+  const fd=document.getElementById('filterDate').value; // 'YYYY-MM-DD' 或 ''
+  const view=fd?orders.filter(o=>{
+    const d=new Date(o.ts);
+    const pad=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`===fd;
+  }):orders;
+  document.getElementById('filterCount').textContent=fd?`筛选：${fd}（${view.length} 单）`:`共 ${orders.length} 单`;
+  if(!view.length){ empty.style.display='block'; list.innerHTML=''; empty.textContent=fd?'该日期暂无订单～':'还没有提交过订单～'; }
+  else{
+    empty.style.display='none';
+    list.innerHTML=view.map(o=>{
+      const itemsTxt=o.items.map(i=>`${i.name}×${i.qty}`).join('、');
+      return `<div class="hist-item">
+        <div class="hi-l">
+          <div class="hi-time">🕒 ${o.time}</div>
+          <div class="hi-no">订单号：${o.orderNo}</div>
+          <div class="hi-items">${itemsTxt}</div>
+        </div>
+        <div class="hi-r">
+          <div class="hi-total">¥${fmt(o.total)}</div>
+          <button class="exp" onclick="exportOne('${o.orderNo}')">导出</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // 统计（始终基于全部订单）
+  const todayOrders=orders.filter(o=>isToday(o.ts));
+  const tCount=todayOrders.length;
+  const tSales=todayOrders.reduce((s,o)=>s+o.total,0);
+  const aCount=orders.length;
+  const aSales=orders.reduce((s,o)=>s+o.total,0);
+  document.getElementById('todayOrders').textContent=tCount;
+  document.getElementById('todaySales').textContent='¥'+fmt(tSales);
+  document.getElementById('allOrders').textContent=aCount;
+  document.getElementById('allSales').textContent='¥'+fmt(aSales);
+  document.getElementById('statTodayOrders').textContent=tCount;
+  document.getElementById('statTodaySales').textContent='¥'+fmt(tSales);
+  renderMonth();
+}
+
+// 月度汇总：按 YYYY-MM 聚合 + 商品排行
+let curMonth=''; // 当前选中月份，'' 表示全部
+function monthKey(ts){ const d=new Date(ts); const pad=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function renderMonth(){
+  const grid=document.getElementById('monthsGrid');
+  const rank=document.getElementById('rankList');
+  const empty=document.getElementById('monthEmpty');
+  if(!orders.length){ grid.innerHTML=''; rank.innerHTML=''; empty.style.display='block'; empty.textContent='暂无订单数据～';
+    document.getElementById('mOrders').textContent='0'; document.getElementById('mSales').textContent='¥0.00';
+    document.getElementById('mAvg').textContent='¥0.00'; document.getElementById('mBest').textContent='—'; return; }
+  empty.style.display='none';
+  // 所有月份（倒序）
+  const months=[...new Set(orders.map(o=>monthKey(o.ts)))].sort().reverse();
+  if(!curMonth || !months.includes(curMonth)) curMonth=months[0];
+  grid.innerHTML=months.map(m=>{
+    const mo=orders.filter(o=>monthKey(o.ts)===m);
+    const sales=mo.reduce((s,o)=>s+o.total,0);
+    return `<div class="month-card ${m===curMonth?'active':''}" onclick="selectMonth('${m}')">
+      <div class="mc-m">${m}</div>
+      <div class="mc-s">${mo.length} 单</div>
+      <div class="mc-t">¥${fmt(sales)}</div>
+    </div>`;
+  }).join('');
+  // 当前月数据
+  const mo=orders.filter(o=>monthKey(o.ts)===curMonth);
+  const mSales=mo.reduce((s,o)=>s+o.total,0);
+  const days=new Set(mo.map(o=>{const d=new Date(o.ts);return d.getDate();})).size||1;
+  // 商品排行（按销售额）
+  const agg={};
+  mo.forEach(o=>o.items.forEach(i=>{
+    if(!agg[i.name]) agg[i.name]={cat:i.cat,qty:0,sales:0};
+    agg[i.name].qty+=i.qty; agg[i.name].sales+=i.sub;
+  }));
+  const ranked=Object.entries(agg).map(([n,v])=>({name:n,...v})).sort((a,b)=>b.sales-a.sales).slice(0,8);
+  const max=ranked.length?ranked[0].sales:1;
+  rank.innerHTML=ranked.map((r,idx)=>`
+    <div class="rank-item">
+      <div class="rk ${idx>2?'g':''}">${idx+1}</div>
+      <div class="nm">${r.name} <small style="color:#aaa">[${r.cat}] ×${r.qty}</small></div>
+      <div class="bar" style="width:${Math.max(4,Math.round(r.sales/max*70))}px;background:${idx===0?'#ff6b35':'#c9c2ff'}"></div>
+      <div class="val">¥${fmt(r.sales)}</div>
+    </div>`).join('') || '<div style="color:#888;font-size:13px">该月暂无商品</div>';
+  // 指标
+  document.getElementById('mOrders').textContent=mo.length;
+  document.getElementById('mSales').textContent='¥'+fmt(mSales);
+  document.getElementById('mAvg').textContent='¥'+fmt(mSales/days);
+  document.getElementById('mBest').textContent=ranked.length?ranked[0].name:'—';
+}
+function selectMonth(m){ curMonth=m; renderMonth(); }
+
+// 店铺管理
+function switchShop(id){
+  if(id===curShopId) return;
+  curShopId=id; localStorage.setItem(LS_CUR,id); syncCur();
+  cart={}; curFilter='全部'; render(); toast('已切换到：'+curShop().name);
+}
+function addShop(){
+  const name=prompt('新店铺名称：','新店铺');
+  if(!name||!name.trim()) return;
+  const s={id:'shop_'+Date.now(), name:name.trim(), products:[], orders:[]};
+  shops.push(s); curShopId=s.id; localStorage.setItem(LS_CUR,id); syncCur();
+  saveShops(); cart={}; curFilter='全部'; render(); toast('已创建店铺：'+s.name);
+}
+function delShop(id){
+  if(shops.length<=1){ toast('至少保留一个店铺'); return; }
+  const s=shops.find(x=>x.id===id);
+  if(!confirm(`确定删除店铺「${s.name}」？\n该店铺的商品与订单将一并删除，不可恢复。`)) return;
+  shops=shops.filter(x=>x.id!==id);
+  if(curShopId===id){ curShopId=shops[0].id; localStorage.setItem(LS_CUR,curShopId); }
+  syncCur(); saveShops(); cart={}; curFilter='全部'; render(); toast('已删除店铺：'+s.name);
+}
+
+// 导出整体备份（含所有店铺）
+function exportBackup(){
+  const data={app:'点单小程序', version:2, exportedAt:new Date().toISOString(), shops, curShopId};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='点单备份_'+Date.now()+'.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出备份（'+shops.length+' 个店铺）');
+}
+
+// 导入备份并恢复（覆盖本地数据）
+function importBackup(input){
+  const file=input.files[0];
+  if(!file){ return; }
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      let newShops=null, newCur=null;
+      if(data && Array.isArray(data.shops)){ newShops=data.shops; newCur=data.curShopId; }
+      else if(data && Array.isArray(data.products)){ // 兼容旧版单店备份
+        newShops=[{id:'shop_default', name:'总店', products:data.products, orders:data.orders||[]}]; newCur='shop_default';
+      }
+      if(!newShops){ toast('备份文件格式不正确'); input.value=''; return; }
+      if(!confirm(`确定用备份覆盖当前数据？\n备份含：${newShops.length} 个店铺\n（当前本地数据将被替换）`)){
+        input.value=''; return;
+      }
+      shops=newShops;
+      curShopId=(newCur && shops.find(s=>s.id===newCur))?newCur:shops[0].id;
+      localStorage.setItem(LS_CUR,curShopId); syncCur(); saveShops();
+      curMonth=''; curFilter='全部'; cart={}; lastOrder=null;
+      render();
+      toast('已恢复备份数据');
+    }catch(err){ toast('解析失败：文件非合法 JSON'); }
+    input.value='';
+  };
+  r.readAsText(file);
+}
+
+// 清除日期筛选
+function clearDateFilter(){
+  document.getElementById('filterDate').value='';
+  renderHistory();
+  toast('已显示全部日期');
+}
+
+// 导出全部历史订单为 CSV（UTF-8 + BOM，Excel 直接打开中文不乱码）
+function exportCSV(){
+  if(!orders.length){ toast('暂无可导出的订单'); return; }
+  // 表头
+  let rows=[['订单号','下单时间','商品名称','种类','单价(元)','数量','小计(元)','订单合计(元)']];
+  orders.forEach(o=>{
+    o.items.forEach((i,idx)=>{
+      rows.push([
+        o.orderNo,
+        o.time,
+        i.name,
+        i.cat,
+        fmt(i.price),
+        i.qty,
+        fmt(i.sub),
+        idx===0?fmt(o.total):''  // 订单合计只在首行显示
+      ]);
+    });
+  });
+  // CSV 转义：含逗号/引号/换行的字段加引号
+  const esc=v=>{ v=String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const csv='\uFEFF'+rows.map(r=>r.map(esc).join(',')).join('\r\n'); // BOM 头防乱码
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='历史订单_'+new Date().getTime()+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出 CSV（'+orders.length+' 单）');
+}
+
+// 打印小票（调用浏览器打印，仅显示小票区）
+function printReceipt(){
+  const area=document.getElementById('printArea');
+  const box=document.querySelector('.modal-box');
+  document.getElementById('printOnly').appendChild(area); // 移出弹窗避免布局干扰
+  window.print();
+  box.appendChild(area); // 打印完移回
+}
+
+// 导出订单为文件（同时提供 文本 / JSON 两种格式）
+function exportOrder(){
+  if(!lastOrder){ toast('暂无可导出的订单'); return; }
+  const pick=confirm('点击「确定」导出为 .txt 文本小票\n点击「取消」导出为 .json 数据文件');
+  let content, name, type;
+  if(pick){
+    content=
+`========== 点单小程序 订单小票 ==========\n`+
+`下单时间：${lastOrder.time}\n`+
+`订单号：${lastOrder.orderNo}\n`+
+`----------------------------------------\n`+
+lastOrder.items.map(i=>`${i.name} [${i.cat}]  x${i.qty}   ¥${fmt(i.sub)}`).join('\n')+
+`\n----------------------------------------\n`+
+`合计：¥${fmt(lastOrder.total)}\n`+
+`========================================`;
+    name='订单_'+lastOrder.orderNo+'.txt'; type='text/plain;charset=utf-8';
+  }else{
+    content=JSON.stringify(lastOrder,null,2);
+    name='订单_'+lastOrder.orderNo+'.json'; type='application/json;charset=utf-8';
+  }
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=name; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出：'+name);
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+function newOrder(){ cart={}; lastOrder=null; render(); closeModal(); toast('已开新单'); }
+
+// 导出单条历史订单（txt 小票）
+function exportOne(orderNo){
+  const o=orders.find(x=>String(x.orderNo)===String(orderNo));
+  if(!o){ toast('订单不存在'); return; }
+  const content=
+`========== 点单小程序 订单小票 ==========\n`+
+`下单时间：${o.time}\n`+
+`订单号：${o.orderNo}\n`+
+`----------------------------------------\n`+
+o.items.map(i=>`${i.name} [${i.cat}]  x${i.qty}   ¥${fmt(i.sub)}`).join('\n')+
+`\n----------------------------------------\n`+
+`合计：¥${fmt(o.total)}\n`+
+`========================================`;
+  const blob=new Blob([content],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='订单_'+o.orderNo+'.txt'; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出：订单_'+o.orderNo+'.txt');
+}
+
+// 初始化：先读店铺（含旧版迁移），再渲染
+loadShops();
+function render(){
+</script>
+</body>
+</html>
