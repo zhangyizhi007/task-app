@@ -14,10 +14,15 @@
   body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:140px}
 
   /* ===== 顶部 Banner（风景图背景） ===== */
-  .topbar{position:relative;z-index:30;height:200px;background:#3a6ea5 url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600&q=80') center/cover no-repeat;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .topbar{position:relative;z-index:30;height:200px;background-color:#3a6ea5;background-image:url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600&q=80');background-position:center;background-size:cover;background-repeat:no-repeat;display:flex;align-items:center;justify-content:center;overflow:hidden}
   .topbar::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45))}
   .topbar h1{position:relative;z-index:1;font-size:30px;font-weight:700;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.5);letter-spacing:3px}
   .topbar .tb-icon{display:none}
+  /* Banner 上传按钮 */
+  .banner-edit{position:absolute;right:12px;bottom:12px;z-index:2;display:flex;gap:8px}
+  .banner-edit button{border:none;border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;background:rgba(0,0,0,.45);color:#fff;backdrop-filter:blur(2px);transition:.2s;font-weight:600}
+  .banner-edit button:hover{background:rgba(0,0,0,.7)}
+  .banner-edit input[type=file]{display:none}
 
   /* ===== 左侧分类导航 + 右侧商品区（点单页专用） ===== */
   .order-layout{display:flex;gap:0;min-height:calc(100vh - 120px)}
@@ -199,8 +204,14 @@
 <body>
 
 <!-- 顶部 Banner（风景图） -->
-<div class="topbar">
+<div class="topbar" id="topbar">
   <h1>点单小程序</h1>
+  <div class="banner-edit">
+    <label style="cursor:pointer">📷 换图
+      <input type="file" accept="image/*" onchange="uploadBanner(this)">
+    </label>
+    <button onclick="resetBanner()">恢复默认</button>
+  </div>
 </div>
 
 <div class="wrap">
@@ -398,6 +409,8 @@ let curPage = 'order';
 let lastOrder = null;
 const LS_SHOPS = 'order_app_shops_v2';
 const LS_CUR = 'order_app_curshop_v1';
+const LS_BANNER = 'order_app_banner_v1';
+const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600&q=80';
 
 function curShop(){ return shops.find(s=>s.id===curShopId) || shops[0]; }
 function saveShops(){
@@ -499,6 +512,56 @@ async function handleImg(input){
   if(!file){ pendingImg=''; tip.textContent=''; return; }
   tip.textContent='压缩中…';
   pendingImg=await compressImage(file);
+}
+
+// ========== 自定义 Banner 图 ==========
+// 压缩为宽 1600 以内的 JPEG，限定 ~400KB，避免 localStorage 溢出
+function compressBanner(file){
+  return new Promise((resolve)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        const LONG=1600;
+        if(Math.max(w,h)>LONG){ const r=LONG/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        let q=0.85;
+        let out=canvas.toDataURL('image/jpeg',q);
+        while(out.length>420*1024 && q>0.35){ q-=0.05; out=canvas.toDataURL('image/jpeg',q); }
+        resolve(out);
+      };
+      img.onerror=()=>resolve('');
+      img.src=e.target.result;
+    };
+    reader.onerror=()=>resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+async function uploadBanner(input){
+  const file=input.files[0];
+  if(!file) return;
+  const data=await compressBanner(file);
+  if(!data){ toast('图片读取失败'); input.value=''; return; }
+  try{
+    localStorage.setItem(LS_BANNER, data);
+    applyBanner(data);
+    toast('Banner 已更新');
+  }catch(e){
+    toast('图片过大，保存失败');
+  }
+  input.value='';
+}
+function resetBanner(){
+  localStorage.removeItem(LS_BANNER);
+  applyBanner('');
+  toast('已恢复默认风景图');
+}
+function applyBanner(data){
+  const bar=document.getElementById('topbar');
+  bar.style.backgroundImage = data ? `url('${data}')` : `url('${DEFAULT_BANNER}')`;
 }
 
 function isToday(ts){
@@ -950,6 +1013,7 @@ function closeMenuModal(){ document.getElementById('menuModal').classList.remove
 
 // ========== 初始化 ==========
 loadShops();
+applyBanner(localStorage.getItem(LS_BANNER) || '');
 render();
 renderDishes();
 </script>
