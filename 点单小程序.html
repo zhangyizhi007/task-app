@@ -12,13 +12,18 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:160px}
   /* Hero */
-  .hero{background:linear-gradient(135deg,#ff6b35,#ff8c42);color:#fff;padding:28px 20px;text-align:center}
-  .hero h1{font-size:22px;margin-bottom:8px}
-  .hero .stats{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin-top:14px}
-  .hero .stat{min-width:80px}
-  .hero .stat .num{font-size:26px;font-weight:700}
-  .hero .stat .lbl{font-size:12px;opacity:.9}
-  .hero .stat .num.hl{color:#fff7cc}
+  .hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#ff7a45,#ff9a3d 55%,#ffb347);color:#fff;padding:46px 20px 42px;text-align:center}
+  .hero::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.12)}
+  .hero::before{content:"";position:absolute;left:-30px;bottom:-50px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.10)}
+  .hero .badge{display:inline-block;font-size:12px;letter-spacing:2px;background:rgba(255,255,255,.2);padding:3px 12px;border-radius:20px;margin-bottom:12px;backdrop-filter:blur(2px)}
+  .hero h1{font-size:34px;font-weight:800;letter-spacing:3px;text-shadow:0 2px 10px rgba(0,0,0,.12);position:relative;z-index:1}
+  .hero .sub{display:none}
+  .hero .stats{display:none}
+  /* 首页快捷统计条（替代原 banner 数字） */
+  .quick-stats{display:flex;gap:10px;flex-wrap:wrap;margin:-22px auto 18px;max-width:1100px;padding:0 18px;position:relative;z-index:5}
+  .qs{flex:1;min-width:110px;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);text-align:center}
+  .qs .qn{font-size:22px;font-weight:800;color:var(--primary)}
+  .qs .ql{font-size:12px;color:var(--muted);margin-top:2px}
   .wrap{max-width:1100px;margin:0 auto;padding:18px}
   /* 页面 */
   .page{display:none}
@@ -181,15 +186,16 @@
 <body>
 
 <div class="hero">
-  <h1>🍜 点单小程序</h1>
-  <p>添加商品 · 选种类定价 · 一键下单自动算总价</p>
-  <div class="stats">
-    <div class="stat"><div class="num" id="statCount">0</div><div class="lbl">商品种类</div></div>
-    <div class="stat"><div class="num" id="statCart">0</div><div class="lbl">购物车件数</div></div>
-    <div class="stat"><div class="num" id="statTotal">¥0</div><div class="lbl">当前总价</div></div>
-    <div class="stat"><div class="num hl" id="statTodayOrders">0</div><div class="lbl">今日订单</div></div>
-    <div class="stat"><div class="num hl" id="statTodaySales">¥0</div><div class="lbl">今日营业额</div></div>
-  </div>
+  <span class="badge">ORDER · 扫码点单</span>
+  <h1>点单小程序</h1>
+</div>
+
+<div class="quick-stats">
+  <div class="qs"><div class="qn" id="statCount">0</div><div class="ql">商品种类</div></div>
+  <div class="qs"><div class="qn" id="statCart">0</div><div class="ql">购物车件数</div></div>
+  <div class="qs"><div class="qn" id="statTotal">¥0</div><div class="ql">当前总价</div></div>
+  <div class="qs"><div class="qn" id="statTodayOrders">0</div><div class="ql">今日订单</div></div>
+  <div class="qs"><div class="qn" id="statTodaySales">¥0</div><div class="ql">今日营业额</div></div>
 </div>
 
 <div class="wrap">
@@ -551,6 +557,14 @@ function removeProduct(id){
   renderDishes();
 }
 
+// 仅从购物车移除，不删除菜品本身（点单页使用）
+function removeFromCart(id){
+  if(!cart[id]){ toast('该商品不在购物车中'); return; }
+  delete cart[id];
+  render();
+  toast('已从购物车移除');
+}
+
 // 编辑库存
 function editStock(id){
   const p=products.find(x=>x.id===id);
@@ -601,7 +615,9 @@ function render(){
       : (q>0
         ? `<div class="qty"><button onclick="changeQty('${p.id}',-1)">−</button><span>${q}</span><button onclick="changeQty('${p.id}',1)">+</button></div>`
         : `<button class="add" style="flex:1" onclick="changeQty('${p.id}',1)">加入购物车</button>`);
-    const ops=`${addBtn}<button class="del" onclick="removeProduct('${p.id}')">删除</button>`;
+    const ops=q>0
+      ? `${addBtn}<button class="del" onclick="removeFromCart('${p.id}')">删除</button>`
+      : `<button class="add" style="flex:1" onclick="changeQty('${p.id}',1)">加入购物车</button>`;
     return `<div class="pcard ${soldout?'soldout':''}">${img}
       <div class="body">
         <span class="ptag">${p.cat}</span>
