@@ -13,10 +13,11 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:140px}
 
-  /* ===== 顶部标题栏 ===== */
-  .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:10px}
-  .topbar h1{font-size:18px;font-weight:600;color:#222}
-  .topbar .tb-icon{font-size:20px}
+  /* ===== 顶部 Banner（风景图背景） ===== */
+  .topbar{position:relative;z-index:30;height:200px;background:#3a6ea5 url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600&q=80') center/cover no-repeat;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .topbar::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45))}
+  .topbar h1{position:relative;z-index:1;font-size:30px;font-weight:700;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.5);letter-spacing:3px}
+  .topbar .tb-icon{display:none}
 
   /* ===== 左侧分类导航 + 右侧商品区（点单页专用） ===== */
   .order-layout{display:flex;gap:0;min-height:calc(100vh - 120px)}
@@ -152,14 +153,6 @@
   .backup-bar .bk-tip{font-size:12px;color:var(--muted);flex:1;min-width:160px}
   .backup-bar .btn{padding:9px 18px;font-size:13px}
   .backup-bar input[type=file]{display:none}
-  /* 店铺切换 */
-  .shop-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin-bottom:18px;box-shadow:var(--shadow)}
-  .shop-bar .shop-tabs{display:flex;gap:8px;flex-wrap:wrap;flex:1}
-  .shop-tab{padding:7px 16px;border:1px solid var(--line);border-radius:20px;font-size:13px;cursor:pointer;background:#fafafa;transition:.2s;display:flex;align-items:center;gap:6px}
-  .shop-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-  .shop-tab .x{font-size:12px;opacity:.7;cursor:pointer}
-  .shop-tab .x:hover{opacity:1}
-  .shop-bar .btn{padding:8px 16px;font-size:13px}
   .receipt .r-head{text-align:center;border-bottom:1px dashed var(--line);padding-bottom:8px;margin-bottom:8px}
   .receipt .r-head .title{font-weight:700;font-size:16px}
   .receipt .r-head .meta{font-size:11px;color:var(--muted);margin-top:4px}
@@ -205,19 +198,12 @@
 </head>
 <body>
 
-<!-- 顶部标题栏 -->
+<!-- 顶部 Banner（风景图） -->
 <div class="topbar">
-  <span class="tb-icon">🏠</span>
   <h1>点单小程序</h1>
 </div>
 
 <div class="wrap">
-
-  <!-- 店铺切换（共享） -->
-  <div class="shop-bar" id="shopBarOuter">
-    <div class="shop-tabs" id="shopTabs"></div>
-    <button class="btn btn-ghost" onclick="addShop()">+ 新店铺</button>
-  </div>
 
   <!-- ============ 点单页（左右布局） ============ -->
   <div class="page active" id="page-order">
@@ -463,8 +449,6 @@ function switchPage(name){
   });
   const cartbar=document.getElementById('cartbar');
   cartbar.classList.toggle('show', name==='order');
-  // 点单页显示店铺栏，其他页隐藏
-  document.getElementById('shopBarOuter').style.display=(name==='order'?'':'none');
   if(name==='order') render();
   else if(name==='dishes') renderDishes();
   else if(name==='report') renderReport();
@@ -595,12 +579,6 @@ function clearCart(){ cart={}; render(); toast('购物车已清空'); }
 
 // ========== 渲染：点单页（参考图风格） ==========
 function render(){
-  // 店铺标签
-  const st=document.getElementById('shopTabs');
-  st.innerHTML=shops.map(s=>`<span class="shop-tab ${s.id===curShopId?'active':''}" onclick="switchShop('${s.id}')">
-    🏪 ${s.name}${shops.length>1?`<span class="x" onclick="event.stopPropagation();delShop('${s.id}')">✕</span>`:''}
-  </span>`).join('');
-
   // 分类
   const cats=['全部',...new Set(products.map(p=>p.cat))];
   // 左侧导航
@@ -836,28 +814,6 @@ function renderMonth(){
   document.getElementById('mBest').textContent=ranked.length?ranked[0].name:'—';
 }
 function selectMonth(m){ curMonth=m; renderMonth(); }
-
-// ========== 店铺管理 ==========
-function switchShop(id){
-  if(id===curShopId) return;
-  curShopId=id; localStorage.setItem(LS_CUR,id); syncCur();
-  cart={}; curFilter='全部'; render(); renderDishes(); toast('已切换到：'+curShop().name);
-}
-function addShop(){
-  const name=prompt('新店铺名称：','新店铺');
-  if(!name||!name.trim()) return;
-  const s={id:'shop_'+Date.now(), name:name.trim(), products:[], orders:[]};
-  shops.push(s); curShopId=s.id; localStorage.setItem(LS_CUR,s.id); syncCur();
-  saveShops(); cart={}; curFilter='全部'; render(); renderDishes(); toast('已创建店铺：'+s.name);
-}
-function delShop(id){
-  if(shops.length<=1){ toast('至少保留一个店铺'); return; }
-  const s=shops.find(x=>x.id===id);
-  if(!confirm(`确定删除店铺「${s.name}」？\n该店铺的商品与订单将一并删除，不可恢复。`)) return;
-  shops=shops.filter(x=>x.id!==id);
-  if(curShopId===id){ curShopId=shops[0].id; localStorage.setItem(LS_CUR,curShopId); }
-  syncCur(); saveShops(); cart={}; curFilter='全部'; render(); renderDishes(); toast('已删除店铺：'+s.name);
-}
 
 // ========== 备份 ==========
 function exportBackup(){
