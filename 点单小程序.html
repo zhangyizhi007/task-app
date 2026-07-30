@@ -184,6 +184,7 @@
     #printArea,#printArea *{visibility:visible}
     #printArea{position:absolute;left:0;top:0;width:100%;padding:10px;background:#fff}
     .modal{display:flex!important;background:transparent!important;align-items:flex-start;justify-content:flex-start;padding:0}
+    #confirmModal{display:none!important}
     .modal-box{box-shadow:none!important;border:none!important;background:#fff!important;max-width:100%!important;margin:0!important;padding:0!important}
     .modal-box>*:not(#printArea){display:none!important}
     .receipt{border:none}
@@ -374,6 +375,19 @@
       <button class="btn btn-primary" onclick="printReceipt()">🖨 打印小票</button>
       <button class="btn btn-ghost" onclick="exportOrder()">⬇ 导出订单</button>
       <button class="btn btn-primary" onclick="newOrder()">再来一单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 确认提交订单弹窗 -->
+<div class="modal" id="confirmModal">
+  <div class="modal-box">
+    <h3>⚠️ 确认提交订单</h3>
+    <div class="order-meta" id="confirmSummary"></div>
+    <div class="receipt" id="confirmList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">取消</button>
+      <button class="btn btn-primary" onclick="doSubmit()">✅ 确认提交</button>
     </div>
   </div>
 </div>
@@ -765,6 +779,24 @@ function submitOrder(){
   });
   if(!items.length){ toast('购物车是空的'); return; }
   const total=items.reduce((s,i)=>s+i.sub,0);
+  // 展示确认弹窗
+  document.getElementById('confirmSummary').textContent='共 '+items.reduce((s,i)=>s+i.qty,0)+' 件商品，合计 ¥'+fmt(total);
+  document.getElementById('confirmList').innerHTML=
+    `<div class="r-head"><div class="title">点单小程序</div></div>`+
+    items.map(i=>
+      `<div class="r-item"><span class="nm">${i.name} <small style="color:#888">[${i.cat}]</small></span><span class="qt">×${i.qty}</span><span>¥${fmt(i.sub)}</span></div>`
+    ).join('')+
+    `<div class="r-sum"><span>合计</span><span>¥${fmt(total)}</span></div>`;
+  document.getElementById('confirmModal').classList.add('show');
+}
+
+function doSubmit(){
+  const items=Object.entries(cart).map(([id,q])=>{
+    const p=products.find(x=>x.id===id);
+    return {name:p.name,cat:p.cat,price:p.price,qty:q,sub:p.price*q};
+  });
+  if(!items.length){ closeConfirm(); toast('购物车是空的'); return; }
+  const total=items.reduce((s,i)=>s+i.sub,0);
   const now=new Date();
   const pad=n=>String(n).padStart(2,'0');
   const bj=`${now.getFullYear()}年${pad(now.getMonth()+1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -776,14 +808,22 @@ function submitOrder(){
     `<div class="r-item"><span class="nm">${i.name} <small style="color:#888">[${i.cat}]</small></span><span class="qt">×${i.qty}</span><span>¥${fmt(i.sub)}</span></div>`
   ).join('');
   document.getElementById('orderTotal').textContent=fmt(total);
-  document.getElementById('modal').classList.add('show');
+  // 扣减库存
   Object.entries(cart).forEach(([id,q])=>{
     const p=products.find(x=>x.id===id);
     if(p && p.stock!==null){ p.stock=Math.max(0,p.stock-q); }
   });
   orders.unshift({time:bj, ts:orderNo, orderNo, items, total});
   saveProducts(); saveOrders();
+  // 提交成功：清空购物车 + 关闭确认弹窗 + 弹出成功窗
+  cart={};
+  render();
+  closeConfirm();
+  document.getElementById('modal').classList.add('show');
+  toast('订单已提交，购物车已清空');
 }
+
+function closeConfirm(){ document.getElementById('confirmModal').classList.remove('show'); }
 
 // ========== 报表 ==========
 function renderReport(){
