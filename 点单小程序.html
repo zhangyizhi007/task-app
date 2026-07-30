@@ -182,8 +182,10 @@
   @media print{
     body *{visibility:hidden}
     #printArea,#printArea *{visibility:visible}
-    #printArea{position:absolute;left:0;top:0;width:100%;padding:10px}
-    .cartbar,.tabbar,.topbar,.wrap,.modal-actions,.toast,.order-layout,.modal{display:none!important}
+    #printArea{position:absolute;left:0;top:0;width:100%;padding:10px;background:#fff}
+    .modal{display:flex!important;background:transparent!important;align-items:flex-start;justify-content:flex-start;padding:0}
+    .modal-box{box-shadow:none!important;border:none!important;background:#fff!important;max-width:100%!important;margin:0!important;padding:0!important}
+    .modal-box>*:not(#printArea){display:none!important}
     .receipt{border:none}
   }
 
@@ -395,7 +397,6 @@
   </div>
 </div>
 
-<div id="printOnly" style="display:none"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -942,11 +943,9 @@ function exportCSV(){
 
 // ========== 打印 & 导出 ==========
 function printReceipt(){
-  const area=document.getElementById('printArea');
-  const box=document.querySelector('.modal-box');
-  document.getElementById('printOnly').appendChild(area);
+  // 不移动 DOM，避免 display:none 父容器导致内容不渲染；
+  // 打印时仅让 #printArea 显示，其余元素 visibility:hidden。
   window.print();
-  box.appendChild(area);
 }
 
 function exportOrder(){
