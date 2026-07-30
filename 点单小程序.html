@@ -10,7 +10,7 @@
     --text:#222; --muted:#888; --line:#eee; --green:#2ecc71; --shadow:0 2px 12px rgba(0,0,0,.06);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:90px}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;padding-bottom:160px}
   /* Hero */
   .hero{background:linear-gradient(135deg,#ff6b35,#ff8c42);color:#fff;padding:28px 20px;text-align:center}
   .hero h1{font-size:22px;margin-bottom:8px}
@@ -20,6 +20,9 @@
   .hero .stat .lbl{font-size:12px;opacity:.9}
   .hero .stat .num.hl{color:#fff7cc}
   .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  /* 页面 */
+  .page{display:none}
+  .page.active{display:block}
   /* 表单 */
   .panel{background:var(--card);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:22px}
   .panel h2{font-size:16px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
@@ -64,15 +67,21 @@
   .del{background:#ffe9e9;color:#e74c3c}
   .add{background:var(--primary);color:#fff}
   /* 购物车底部栏 */
-  .cartbar{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -3px 16px rgba(0,0,0,.1);padding:12px 18px;display:flex;align-items:center;gap:14px;max-width:1100px;margin:0 auto}
+  .cartbar{position:fixed;left:0;right:0;bottom:56px;background:#fff;box-shadow:0 -3px 16px rgba(0,0,0,.1);padding:12px 18px;display:none;align-items:center;gap:14px;max-width:1100px;margin:0 auto;z-index:40}
+  .cartbar.show{display:flex}
   .cartbar .info{flex:1}
   .cartbar .info .cnt{font-size:13px;color:var(--muted)}
   .cartbar .info .total{font-size:20px;font-weight:700;color:var(--primary)}
   .cartbar .info .total small{font-size:12px;color:var(--muted);font-weight:400}
   .cartbar .btns{display:flex;gap:10px}
   .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
+  /* 底部导航栏 */
+  .tabbar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;height:56px;z-index:45;box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+  .tabbar .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:12px;color:var(--muted);transition:.2s;background:none;border:none;outline:none}
+  .tabbar .tab .icon{font-size:18px;line-height:1}
+  .tabbar .tab.active{color:var(--primary);font-weight:600}
   /* 订单弹窗 */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:60}
   .modal.show{display:flex}
   .modal-box{background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:22px}
   .modal-box h3{font-size:18px;margin-bottom:14px}
@@ -147,12 +156,24 @@
   .receipt .r-item .nm{flex:1}
   .receipt .r-item .qt{color:var(--muted);margin:0 10px}
   .receipt .r-sum{display:flex;justify-content:space-between;font-weight:700;font-size:15px;border-top:1px dashed var(--line);padding-top:8px;margin-top:6px}
+  /* 菜品管理列表 */
+  .dish-list{display:flex;flex-direction:column;gap:10px}
+  .dish-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+  .dish-item .di-img{width:56px;height:56px;border-radius:8px;object-fit:cover;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .dish-item .di-info{flex:1;min-width:0}
+  .dish-item .di-name{font-weight:600;font-size:14px}
+  .dish-item .di-meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .dish-item .di-stock{font-size:12px;margin-top:2px}
+  .dish-item .di-ops{display:flex;gap:6px;flex-shrink:0}
+  .dish-item .di-ops button{padding:6px 12px;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600}
+  .dish-item .di-edit{background:#e8f0ff;color:#3498db}
+  .dish-item .di-del{background:#ffe9e9;color:#e74c3c}
   /* 打印样式 */
   @media print{
     body *{visibility:hidden}
     #printArea,#printArea *{visibility:visible}
     #printArea{position:absolute;left:0;top:0;width:100%;padding:10px}
-    .cartbar,.hero,.wrap,.modal-actions,.toast{display:none!important}
+    .cartbar,.tabbar,.hero,.wrap,.modal-actions,.toast{display:none!important}
     .receipt{border:none}
   }
 </style>
@@ -173,109 +194,126 @@
 
 <div class="wrap">
 
-  <!-- 店铺切换 -->
+  <!-- 店铺切换（共享） -->
   <div class="shop-bar">
     <div class="shop-tabs" id="shopTabs"></div>
     <button class="btn btn-ghost" onclick="addShop()">+ 新店铺</button>
   </div>
 
-  <!-- 版块一：添加商品 -->
-  <div class="panel">
-    <h2>添加商品</h2>
-    <div class="grid">
-      <div class="field">
-        <label>商品图片</label>
-        <label class="file-btn">📷 选择图片
-          <input type="file" id="pImg" accept="image/*" onchange="handleImg(this)">
+  <!-- ============ 点单页 ============ -->
+  <div class="page active" id="page-order">
+    <!-- 种类筛选 -->
+    <div class="filters" id="filters"></div>
+
+    <!-- 商品列表 -->
+    <div class="cards" id="cards"></div>
+    <div class="empty" id="emptyTip" style="display:none">还没有商品，先在「菜品」页添加吧～</div>
+  </div>
+
+  <!-- ============ 菜品页 ============ -->
+  <div class="page" id="page-dishes">
+    <!-- 添加商品表单 -->
+    <div class="panel">
+      <h2>添加商品</h2>
+      <div class="grid">
+        <div class="field">
+          <label>商品图片</label>
+          <label class="file-btn">📷 选择图片
+            <input type="file" id="pImg" accept="image/*" onchange="handleImg(this)">
+          </label>
+          <div class="compressing" id="compressTip"></div>
+        </div>
+        <div class="field">
+          <label>商品名称</label>
+          <input type="text" id="pName" placeholder="如：招牌牛肉面">
+        </div>
+        <div class="field">
+          <label>种类</label>
+          <input type="text" id="pCat" list="catList" placeholder="如：主食 / 饮品">
+          <datalist id="catList"></datalist>
+        </div>
+        <div class="field">
+          <label>价格（元）</label>
+          <input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>库存（份，留空=不限制）</label>
+          <input type="number" id="pStock" min="0" step="1" placeholder="如：50">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="addProduct()">+ 加入菜单</button>
+        <button class="btn btn-ghost" onclick="clearProducts()">清空菜单</button>
+      </div>
+    </div>
+
+    <!-- 已添加菜品列表 -->
+    <div class="panel">
+      <h2>已添加菜品</h2>
+      <div class="dish-list" id="dishList"></div>
+      <div class="empty" id="dishEmpty" style="display:none">还没有添加菜品～</div>
+    </div>
+  </div>
+
+  <!-- ============ 报表页 ============ -->
+  <div class="page" id="page-report">
+    <!-- 今日营业统计条 -->
+    <div class="today-bar">
+      <div class="tb"><div class="n" id="todayOrders">0</div><div class="l">今日订单数</div></div>
+      <div class="tb"><div class="n" id="todaySales">¥0.00</div><div class="l">今日营业额</div></div>
+      <div class="tb"><div class="n" id="allOrders">0</div><div class="l">历史总订单</div></div>
+      <div class="tb"><div class="n" id="allSales">¥0.00</div><div class="l">历史总营业额</div></div>
+    </div>
+
+    <!-- 历史订单 -->
+    <div class="panel">
+      <h2>历史订单</h2>
+      <div class="hist-toolbar">
+        <div class="field">
+          <label>日期</label>
+          <input type="date" id="filterDate" onchange="renderHistory()">
+        </div>
+        <button class="btn btn-ghost" onclick="clearDateFilter()">全部日期</button>
+        <div class="spacer"></div>
+        <span class="cnt" id="filterCount" style="font-size:13px;color:var(--muted)"></span>
+        <button class="btn btn-primary" onclick="exportCSV()">⬇ 导出全部 CSV</button>
+      </div>
+      <div class="hist-list" id="histList"></div>
+      <div class="empty" id="histEmpty">还没有提交过订单～</div>
+    </div>
+
+    <!-- 月度汇总 -->
+    <div class="panel">
+      <h2>月度汇总</h2>
+      <div class="month-bar">
+        <div class="mb"><div class="n" id="mOrders">0</div><div class="l">当前月订单</div></div>
+        <div class="mb"><div class="n" id="mSales">¥0.00</div><div class="l">当前月营业额</div></div>
+        <div class="mb"><div class="n" id="mAvg">¥0.00</div><div class="l">月日均营业额</div></div>
+        <div class="mb"><div class="n" id="mBest">—</div><div class="l">最畅销商品</div></div>
+      </div>
+      <div class="months-grid" id="monthsGrid"></div>
+      <div style="margin-top:14px;font-size:14px;font-weight:600">🏆 当月商品排行（按销售额）</div>
+      <div class="rank-list" id="rankList"></div>
+      <div class="empty" id="monthEmpty" style="display:none">暂无订单数据～</div>
+    </div>
+
+    <!-- 数据备份 -->
+    <div class="panel">
+      <h2>数据备份与恢复</h2>
+      <div class="backup-bar">
+        <span class="bk-tip">将菜单与历史订单打包成一份 JSON，可存档或迁移到其他设备；导入会覆盖当前本地数据。</span>
+        <button class="btn btn-ghost" onclick="exportBackup()">⬇ 导出备份</button>
+        <label class="btn btn-primary" style="cursor:pointer">⬆ 导入恢复
+          <input type="file" id="backupFile" accept="application/json,.json" onchange="importBackup(this)">
         </label>
-        <div class="compressing" id="compressTip"></div>
-      </div>
-      <div class="field">
-        <label>商品名称</label>
-        <input type="text" id="pName" placeholder="如：招牌牛肉面">
-      </div>
-      <div class="field">
-        <label>种类</label>
-        <input type="text" id="pCat" list="catList" placeholder="如：主食 / 饮品">
-        <datalist id="catList"></datalist>
-      </div>
-      <div class="field">
-        <label>价格（元）</label>
-        <input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00">
-      </div>
-      <div class="field">
-        <label>库存（份，留空=不限制）</label>
-        <input type="number" id="pStock" min="0" step="1" placeholder="如：50">
       </div>
     </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="addProduct()">+ 加入菜单</button>
-      <button class="btn btn-ghost" onclick="clearProducts()">清空菜单</button>
-    </div>
-  </div>
-
-  <!-- 版块二：种类筛选 -->
-  <div class="filters" id="filters"></div>
-
-  <!-- 版块三：商品列表 -->
-  <div class="cards" id="cards"></div>
-  <div class="empty" id="emptyTip" style="display:none">还没有商品，先在上方添加吧～</div>
-
-  <!-- 版块四：数据备份 -->
-  <div class="panel">
-    <h2>数据备份与恢复</h2>
-    <div class="backup-bar">
-      <span class="bk-tip">将菜单与历史订单打包成一份 JSON，可存档或迁移到其他设备；导入会覆盖当前本地数据。</span>
-      <button class="btn btn-ghost" onclick="exportBackup()">⬇ 导出备份</button>
-      <label class="btn btn-primary" style="cursor:pointer">⬆ 导入恢复
-        <input type="file" id="backupFile" accept="application/json,.json" onchange="importBackup(this)">
-      </label>
-    </div>
-  </div>
-
-  <!-- 版块五：月度汇总 -->
-  <div class="panel">
-    <h2>月度汇总</h2>
-    <div class="month-bar">
-      <div class="mb"><div class="n" id="mOrders">0</div><div class="l">当前月订单</div></div>
-      <div class="mb"><div class="n" id="mSales">¥0.00</div><div class="l">当前月营业额</div></div>
-      <div class="mb"><div class="n" id="mAvg">¥0.00</div><div class="l">月日均营业额</div></div>
-      <div class="mb"><div class="n" id="mBest">—</div><div class="l">最畅销商品</div></div>
-    </div>
-    <div class="months-grid" id="monthsGrid"></div>
-    <div style="margin-top:14px;font-size:14px;font-weight:600">🏆 当月商品排行（按销售额）</div>
-    <div class="rank-list" id="rankList"></div>
-    <div class="empty" id="monthEmpty" style="display:none">暂无订单数据～</div>
-  </div>
-
-  <!-- 版块五：今日营业 + 历史订单 -->
-  <div class="today-bar">
-    <div class="tb"><div class="n" id="todayOrders">0</div><div class="l">今日订单数</div></div>
-    <div class="tb"><div class="n" id="todaySales">¥0.00</div><div class="l">今日营业额</div></div>
-    <div class="tb"><div class="n" id="allOrders">0</div><div class="l">历史总订单</div></div>
-    <div class="tb"><div class="n" id="allSales">¥0.00</div><div class="l">历史总营业额</div></div>
-  </div>
-
-  <div class="panel">
-    <h2>历史订单</h2>
-    <div class="hist-toolbar">
-      <div class="field">
-        <label>日期</label>
-        <input type="date" id="filterDate" onchange="renderHistory()">
-      </div>
-      <button class="btn btn-ghost" onclick="clearDateFilter()">全部日期</button>
-      <div class="spacer"></div>
-      <span class="cnt" id="filterCount" style="font-size:13px;color:var(--muted)"></span>
-      <button class="btn btn-primary" onclick="exportCSV()">⬇ 导出全部 CSV</button>
-    </div>
-    <div class="hist-list" id="histList"></div>
-    <div class="empty" id="histEmpty">还没有提交过订单～</div>
   </div>
 
 </div>
 
-<!-- 购物车底部栏 -->
-<div class="cartbar">
+<!-- 购物车底部栏（仅点单页显示） -->
+<div class="cartbar show" id="cartbar">
   <div class="info">
     <div class="cnt" id="cartCnt">购物车：0 件</div>
     <div class="total">¥<span id="cartTotal">0.00</span> <small>合计</small></div>
@@ -284,6 +322,19 @@
     <button class="btn btn-ghost" onclick="clearCart()">清空</button>
     <button class="btn btn-primary" onclick="submitOrder()">提交订单</button>
   </div>
+</div>
+
+<!-- 底部导航栏 -->
+<div class="tabbar" id="tabbar">
+  <button class="tab active" data-page="order" onclick="switchPage('order')">
+    <span class="icon">🍽️</span><span>点单</span>
+  </button>
+  <button class="tab" data-page="dishes" onclick="switchPage('dishes')">
+    <span class="icon">📋</span><span>菜品</span>
+  </button>
+  <button class="tab" data-page="report" onclick="switchPage('report')">
+    <span class="icon">📊</span><span>报表</span>
+  </button>
 </div>
 
 <!-- 订单弹窗 -->
@@ -320,6 +371,7 @@ let products = [];   // 当前店铺商品（派生）
 let orders = [];     // 当前店铺订单（派生）
 let cart = {};       // id -> qty
 let curFilter = '全部';
+let curPage = 'order'; // 当前页面
 let lastOrder = null; // 最近一次订单，用于导出
 const LS_SHOPS = 'order_app_shops_v2';
 const LS_CUR = 'order_app_curshop_v1';
@@ -337,7 +389,7 @@ function loadShops(){
     const raw=localStorage.getItem(LS_SHOPS);
     if(raw){ shops=JSON.parse(raw); }
     else{
-      // 旧版迁移：从 v1 的 products/orders 合并进“总店”
+      // 旧版迁移：从 v1 的 products/orders 合并进"总店"
       let oldP=[], oldO=[];
       try{ const p=localStorage.getItem('order_app_products_v1'); if(p) oldP=JSON.parse(p); }catch(e){}
       try{ const o=localStorage.getItem('order_app_orders_v1'); if(o) oldO=JSON.parse(o); }catch(e){}
@@ -370,7 +422,27 @@ function toast(msg){
 
 function fmt(n){ return n.toFixed(2); }
 
-// 图片自动压缩：压到 ≤1MB（极端情况放宽到 ≤2MB），保持为 base64 dataURL
+// ========== 页面切换 ==========
+function switchPage(name){
+  curPage=name;
+  // 切换页面显隐
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const target=document.getElementById('page-'+name);
+  if(target) target.classList.add('active');
+  // 导航高亮
+  document.querySelectorAll('.tabbar .tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.page===name);
+  });
+  // 购物车栏仅点单页显示
+  const cartbar=document.getElementById('cartbar');
+  cartbar.classList.toggle('show', name==='order');
+  // 切换页面时重新渲染对应内容
+  if(name==='order') render();
+  else if(name==='dishes') renderDishes();
+  else if(name==='report') renderReport();
+}
+
+// ========== 图片压缩 ==========
 function compressImage(file){
   return new Promise((resolve)=>{
     const MAX1=1*1024*1024, MAX2=2*1024*1024;
@@ -420,12 +492,13 @@ async function handleImg(input){
   pendingImg=await compressImage(file);
 }
 
-// 判断是否为“今天”
+// 判断是否为"今天"
 function isToday(ts){
   const d=new Date(ts), n=new Date();
   return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
 }
 
+// ========== 商品管理 ==========
 function addProduct(){
   const name=document.getElementById('pName').value.trim();
   const cat=document.getElementById('pCat').value.trim()||'其他';
@@ -449,14 +522,14 @@ function finishAdd(p){
   document.getElementById('pPrice').value='';
   document.getElementById('pStock').value='';
   document.getElementById('pImg').value='';
-  render();
+  renderDishes();
   toast('已添加：'+p.name);
 }
 
 function clearProducts(){
   if(!products.length) return;
   if(confirm('确定清空【'+curShop().name+'】的所有商品？已加入购物车的也会清空。')){
-    products=[]; cart={}; saveProducts(); render(); toast('菜单已清空');
+    products=[]; cart={}; saveProducts(); renderDishes(); toast('菜单已清空');
   }
 }
 
@@ -475,10 +548,26 @@ function removeProduct(id){
   delete cart[id];
   saveProducts();
   render();
+  renderDishes();
+}
+
+// 编辑库存
+function editStock(id){
+  const p=products.find(x=>x.id===id);
+  if(!p) return;
+  const cur=p.stock===null?'':p.stock;
+  const raw=prompt('修改「'+p.name+'」的库存：\n（输入数字设置库存，留空=不限制）', cur);
+  if(raw===null) return;
+  if(raw.trim()===''){ p.stock=null; }
+  else{ const n=parseInt(raw,10); if(isNaN(n)||n<0){ toast('请输入有效数字'); return; } p.stock=n; }
+  saveProducts();
+  renderDishes();
+  toast('库存已更新');
 }
 
 function clearCart(){ cart={}; render(); toast('购物车已清空'); }
 
+// ========== 渲染：点单页 ==========
 function render(){
   // 店铺切换标签
   const st=document.getElementById('shopTabs');
@@ -495,7 +584,7 @@ function render(){
   const list=products.filter(p=>curFilter==='全部'||p.cat===curFilter);
   const cEl=document.getElementById('cards');
   const empty=document.getElementById('emptyTip');
-  if(!products.length){ empty.style.display='block'; empty.textContent='还没有商品，先在上方添加吧～'; }
+  if(!products.length){ empty.style.display='block'; empty.textContent='还没有商品，先在「菜品」页添加吧～'; }
   else if(!list.length){ empty.style.display='block'; empty.textContent='该种类下暂无商品'; }
   else empty.style.display='none';
   cEl.innerHTML=list.map(p=>{
@@ -540,6 +629,37 @@ function updateStats(){
   document.getElementById('cartTotal').textContent=fmt(total);
 }
 
+// ========== 渲染：菜品页 ==========
+function renderDishes(){
+  const list=document.getElementById('dishList');
+  const empty=document.getElementById('dishEmpty');
+  if(!products.length){ empty.style.display='block'; list.innerHTML=''; return; }
+  empty.style.display='none';
+  list.innerHTML=products.map(p=>{
+    const img=p.img?`<img class="di-img" src="${p.img}" alt="${p.name}">`:`<div class="di-img">🍽️</div>`;
+    let stockTxt;
+    if(p.stock===null) stockTxt='库存：不限';
+    else if(p.stock<=0) stockTxt='<span style="color:#e74c3c;font-weight:600">已售罄</span>';
+    else if(p.stock<=5) stockTxt='<span style="color:#e67e22;font-weight:600">库存紧张：仅 '+p.stock+' 份</span>';
+    else stockTxt='库存：'+p.stock+' 份';
+    return `<div class="dish-item">
+      ${img}
+      <div class="di-info">
+        <div class="di-name">${p.name}</div>
+        <div class="di-meta">[${p.cat}] ¥${fmt(p.price)}/份</div>
+        <div class="di-stock">${stockTxt}</div>
+      </div>
+      <div class="di-ops">
+        <button class="di-edit" onclick="editStock('${p.id}')">改库存</button>
+        <button class="di-del" onclick="removeProduct('${p.id}')">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+  // 更新 Hero 中的商品种类统计
+  document.getElementById('statCount').textContent=products.length;
+}
+
+// ========== 下单 ==========
 function submitOrder(){
   const items=Object.entries(cart).map(([id,q])=>{
     const p=products.find(x=>x.id===id);
@@ -567,6 +687,12 @@ function submitOrder(){
   // 存入历史订单
   orders.unshift({time:bj, ts:orderNo, orderNo, items, total});
   saveProducts(); saveOrders();
+}
+
+// ========== 渲染：报表页 ==========
+function renderReport(){
+  renderHistory();
+  renderMonth();
 }
 
 // 渲染历史订单 + 统计（支持按日期过滤）
@@ -663,18 +789,18 @@ function renderMonth(){
 }
 function selectMonth(m){ curMonth=m; renderMonth(); }
 
-// 店铺管理
+// ========== 店铺管理 ==========
 function switchShop(id){
   if(id===curShopId) return;
   curShopId=id; localStorage.setItem(LS_CUR,id); syncCur();
-  cart={}; curFilter='全部'; render(); toast('已切换到：'+curShop().name);
+  cart={}; curFilter='全部'; render(); renderDishes(); toast('已切换到：'+curShop().name);
 }
 function addShop(){
   const name=prompt('新店铺名称：','新店铺');
   if(!name||!name.trim()) return;
   const s={id:'shop_'+Date.now(), name:name.trim(), products:[], orders:[]};
-  shops.push(s); curShopId=s.id; localStorage.setItem(LS_CUR,id); syncCur();
-  saveShops(); cart={}; curFilter='全部'; render(); toast('已创建店铺：'+s.name);
+  shops.push(s); curShopId=s.id; localStorage.setItem(LS_CUR,s.id); syncCur();
+  saveShops(); cart={}; curFilter='全部'; render(); renderDishes(); toast('已创建店铺：'+s.name);
 }
 function delShop(id){
   if(shops.length<=1){ toast('至少保留一个店铺'); return; }
@@ -682,10 +808,10 @@ function delShop(id){
   if(!confirm(`确定删除店铺「${s.name}」？\n该店铺的商品与订单将一并删除，不可恢复。`)) return;
   shops=shops.filter(x=>x.id!==id);
   if(curShopId===id){ curShopId=shops[0].id; localStorage.setItem(LS_CUR,curShopId); }
-  syncCur(); saveShops(); cart={}; curFilter='全部'; render(); toast('已删除店铺：'+s.name);
+  syncCur(); saveShops(); cart={}; curFilter='全部'; render(); renderDishes(); toast('已删除店铺：'+s.name);
 }
 
-// 导出整体备份（含所有店铺）
+// ========== 数据备份 ==========
 function exportBackup(){
   const data={app:'点单小程序', version:2, exportedAt:new Date().toISOString(), shops, curShopId};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
@@ -695,7 +821,6 @@ function exportBackup(){
   toast('已导出备份（'+shops.length+' 个店铺）');
 }
 
-// 导入备份并恢复（覆盖本地数据）
 function importBackup(input){
   const file=input.files[0];
   if(!file){ return; }
@@ -717,6 +842,7 @@ function importBackup(input){
       localStorage.setItem(LS_CUR,curShopId); syncCur(); saveShops();
       curMonth=''; curFilter='全部'; cart={}; lastOrder=null;
       render();
+      renderDishes();
       toast('已恢复备份数据');
     }catch(err){ toast('解析失败：文件非合法 JSON'); }
     input.value='';
@@ -724,14 +850,13 @@ function importBackup(input){
   r.readAsText(file);
 }
 
-// 清除日期筛选
+// ========== CSV 导出 ==========
 function clearDateFilter(){
   document.getElementById('filterDate').value='';
   renderHistory();
   toast('已显示全部日期');
 }
 
-// 导出全部历史订单为 CSV（UTF-8 + BOM，Excel 直接打开中文不乱码）
 function exportCSV(){
   if(!orders.length){ toast('暂无可导出的订单'); return; }
   // 表头
@@ -760,7 +885,7 @@ function exportCSV(){
   toast('已导出 CSV（'+orders.length+' 单）');
 }
 
-// 打印小票（调用浏览器打印，仅显示小票区）
+// ========== 打印 ==========
 function printReceipt(){
   const area=document.getElementById('printArea');
   const box=document.querySelector('.modal-box');
@@ -769,7 +894,7 @@ function printReceipt(){
   box.appendChild(area); // 打印完移回
 }
 
-// 导出订单为文件（同时提供 文本 / JSON 两种格式）
+// ========== 订单导出 ==========
 function exportOrder(){
   if(!lastOrder){ toast('暂无可导出的订单'); return; }
   const pick=confirm('点击「确定」导出为 .txt 文本小票\n点击「取消」导出为 .json 数据文件');
@@ -820,9 +945,10 @@ o.items.map(i=>`${i.name} [${i.cat}]  x${i.qty}   ¥${fmt(i.sub)}`).join('\n')+
   toast('已导出：订单_'+o.orderNo+'.txt');
 }
 
-// 初始化：先读店铺（含旧版迁移），再渲染
+// ========== 初始化 ==========
 loadShops();
-function render(){
+render();
+renderDishes();
 </script>
 </body>
 </html>
