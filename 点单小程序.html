@@ -118,6 +118,7 @@
   .hist-item .hi-r .hi-total{font-size:18px;font-weight:700;color:var(--primary)}
   .hist-item .hi-r button{padding:6px 14px;font-size:12px;border:none;border-radius:8px;cursor:pointer;background:#f0f0f0;color:#555}
   .hist-item .hi-r .exp{background:var(--primary);color:#fff}
+  .hist-item .hi-r .view-menu{padding:6px 14px;font-size:12px;border:none;border-radius:8px;cursor:pointer;background:#e8f0ff;color:#3498db;font-weight:600}
   .compressing{font-size:12px;color:var(--primary);margin-top:6px;min-height:16px}
   /* 筛选条 */
   .hist-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
@@ -184,7 +185,7 @@
     body *{visibility:hidden}
     #printArea,#printArea *{visibility:visible}
     #printArea{position:absolute;left:0;top:0;width:100%;padding:10px}
-    .cartbar,.tabbar,.topbar,.wrap,.modal-actions,.toast,.order-layout{display:none!important}
+    .cartbar,.tabbar,.topbar,.wrap,.modal-actions,.toast,.order-layout,.modal{display:none!important}
     .receipt{border:none}
   }
 
@@ -374,6 +375,25 @@
       <button class="btn btn-primary" onclick="printReceipt()">🖨 打印小票</button>
       <button class="btn btn-ghost" onclick="exportOrder()">⬇ 导出订单</button>
       <button class="btn btn-primary" onclick="newOrder()">再来一单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 历史订单菜单查看弹窗 -->
+<div class="modal" id="menuModal">
+  <div class="modal-box">
+    <h3>📋 订单菜单</h3>
+    <div class="order-meta" id="menuOrderTime"></div>
+    <div class="receipt">
+      <div class="r-head">
+        <div class="title">点单小程序</div>
+        <div class="meta" id="menuOrderNo"></div>
+      </div>
+      <div id="menuOrderList"></div>
+      <div class="r-sum"><span>合计</span><span>¥<span id="menuOrderTotal">0.00</span></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeMenuModal()">关闭</button>
     </div>
   </div>
 </div>
@@ -752,7 +772,10 @@ function renderHistory(){
         </div>
         <div class="hi-r">
           <div class="hi-total">¥${fmt(o.total)}</div>
-          <button class="exp" onclick="exportOne('${o.orderNo}')">导出</button>
+          <div style="display:flex;gap:6px">
+            <button class="view-menu" onclick="viewOrderMenu('${o.orderNo}')">查看菜单</button>
+            <button class="exp" onclick="exportOne('${o.orderNo}')">导出</button>
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -954,6 +977,20 @@ o.items.map(i=>`${i.name} [${i.cat}]  x${i.qty}   ¥${fmt(i.sub)}`).join('\n')+
   URL.revokeObjectURL(url);
   toast('已导出：订单_'+o.orderNo+'.txt');
 }
+
+// 查看历史订单的商品菜单明细
+function viewOrderMenu(orderNo){
+  const o=orders.find(x=>String(x.orderNo)===String(orderNo));
+  if(!o){ toast('订单不存在'); return; }
+  document.getElementById('menuOrderNo').textContent='订单号：'+o.orderNo;
+  document.getElementById('menuOrderTime').textContent=o.time;
+  document.getElementById('menuOrderList').innerHTML=o.items.map(i=>
+    `<div class="r-item"><span class="nm">${i.name} <small style="color:#888">[${i.cat}]</small></span><span class="qt">×${i.qty}</span><span>¥${fmt(i.sub)}</span></div>`
+  ).join('');
+  document.getElementById('menuOrderTotal').textContent=fmt(o.total);
+  document.getElementById('menuModal').classList.add('show');
+}
+function closeMenuModal(){ document.getElementById('menuModal').classList.remove('show'); }
 
 // ========== 初始化 ==========
 loadShops();
