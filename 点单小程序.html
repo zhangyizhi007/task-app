@@ -134,6 +134,7 @@
   .hist-item .hi-r button{padding:6px 14px;font-size:12px;border:none;border-radius:8px;cursor:pointer;background:#f0f0f0;color:#555}
   .hist-item .hi-r .exp{background:var(--primary);color:#fff}
   .hist-item .hi-r .view-menu{padding:6px 14px;font-size:12px;border:none;border-radius:8px;cursor:pointer;background:#e8f0ff;color:#3498db;font-weight:600}
+  .hist-item .hi-r .del{background:#fef0f0;color:#e74c3c;font-weight:600}
   .compressing{font-size:12px;color:var(--primary);margin-top:6px;min-height:16px}
   /* 筛选条 */
   .hist-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
@@ -896,6 +897,7 @@ function renderHistory(){
           <div style="display:flex;gap:6px">
             <button class="view-menu" onclick="viewOrderMenu('${o.orderNo}')">查看菜单</button>
             <button class="exp" onclick="exportOne('${o.orderNo}')">导出</button>
+            <button class="del" onclick="deleteOrder('${o.orderNo}')">删除</button>
           </div>
         </div>
       </div>`;
@@ -911,6 +913,18 @@ function renderHistory(){
   document.getElementById('allOrders').textContent=aCount;
   document.getElementById('allSales').textContent='¥'+fmt(aSales);
   renderMonth();
+}
+
+function deleteOrder(orderNo){
+  orderNo=String(orderNo);
+  const o=orders.find(x=>String(x.orderNo)===orderNo);
+  if(!o) return;
+  if(!confirm('确定要删除这单吗？\n订单号：'+orderNo+'\n（删除后不可恢复）')) return;
+  orders=orders.filter(x=>String(x.orderNo)!==orderNo);
+  saveOrders();
+  if(lastOrder && String(lastOrder.orderNo)===orderNo) lastOrder=null;
+  renderHistory();
+  toast('订单已删除');
 }
 
 let curMonth='';
