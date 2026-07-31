@@ -191,14 +191,47 @@
   /* 打印样式 */
   @media print{
     body *{visibility:hidden}
-    #printArea,#printArea *{visibility:visible}
-    #printArea{position:absolute;left:0;top:0;width:100%;padding:10px;background:#fff}
-    .modal{display:flex!important;background:transparent!important;align-items:flex-start;justify-content:flex-start;padding:0}
-    #confirmModal{display:none!important}
-    .modal-box{box-shadow:none!important;border:none!important;background:#fff!important;max-width:100%!important;margin:0!important;padding:0!important}
-    .modal-box>*:not(#printArea){display:none!important}
-    .receipt{border:none}
+    /* —— 小票打印（订单提交成功） —— */
+    body.printing-receipt #printArea,
+    body.printing-receipt #printArea *{visibility:visible}
+    body.printing-receipt #printArea{position:absolute;left:0;top:0;width:100%;padding:10px;background:#fff}
+    body.printing-receipt .modal{display:flex!important;background:transparent!important;align-items:flex-start;justify-content:flex-start;padding:0}
+    body.printing-receipt #confirmModal,
+    body.printing-receipt #daySummaryPrint{display:none!important}
+    body.printing-receipt .modal-box{box-shadow:none!important;border:none!important;background:#fff!important;max-width:100%!important;margin:0!important;padding:0!important}
+    body.printing-receipt .modal-box>*:not(#printArea){display:none!important}
+    body.printing-receipt .receipt{border:none}
+    /* —— 每日订单总结打印 —— */
+    body.printing-day-summary #daySummaryPrint,
+    body.printing-day-summary #daySummaryPrint *{visibility:visible}
+    body.printing-day-summary #daySummaryPrint{display:block!important;position:absolute;left:0;top:0;width:100%;padding:16px;background:#fff}
+    body.printing-day-summary .modal,
+    body.printing-day-summary .cartbar,
+    body.printing-day-summary .tabbar,
+    body.printing-day-summary .topbar,
+    body.printing-day-summary .wrap{display:none!important}
   }
+  /* 每日总结打印容器：普通视图隐藏，不占版面 */
+  #daySummaryPrint{display:none}
+  /* 每日总结打印内容样式（仅打印时可见） */
+  .ds{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#222;font-size:13px;line-height:1.6}
+  .ds-head{border-bottom:2px solid #16a085;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap}
+  .ds-title{font-size:18px;font-weight:800;color:#16a085}
+  .ds-date{font-size:14px;color:#555}
+  .ds-stats{display:flex;gap:10px;margin-bottom:14px}
+  .ds-st{flex:1;background:#f0faf5;border:1px solid #d7efe7;border-radius:8px;padding:10px 12px;text-align:center}
+  .ds-st .n{font-size:18px;font-weight:800;color:#16a085}
+  .ds-st .l{font-size:12px;color:#777;margin-top:2px}
+  .ds-sec{font-size:14px;font-weight:700;margin:14px 0 8px;padding-left:8px;border-left:4px solid #16a085}
+  .ds-tb{width:100%;border-collapse:collapse;font-size:12.5px}
+  .ds-tb th,.ds-tb td{border:1px solid #ddd;padding:6px 8px;vertical-align:top}
+  .ds-tb thead th{background:#f6f8f8;color:#555;font-weight:700}
+  .ds-tb tfoot td{background:#f0faf5}
+  .ds-ord{display:flex;justify-content:space-between;gap:10px;padding:5px 2px;border-bottom:1px dashed #eee;font-size:12px}
+  .ds-ot{color:#555}
+  .ds-on{color:#999;flex:1}
+  .ds-otot{font-weight:700;color:#16a085}
+  .ds-foot{margin-top:16px;padding-top:8px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:right}
 
   /* ===== 响应式：手机端分类变横向滚动 ===== */
   @media (max-width: 640px){
@@ -313,6 +346,7 @@
         <button class="btn btn-ghost" onclick="clearDateFilter()">全部日期</button>
         <div class="spacer"></div>
         <span class="cnt" id="filterCount" style="font-size:13px;color:var(--muted)"></span>
+        <button class="btn btn-ghost" onclick="printDaySummary()">🖨 每日总结</button>
         <button class="btn btn-primary" onclick="exportCSV()">⬇ 导出全部 CSV</button>
       </div>
       <div class="hist-list" id="histList"></div>
@@ -429,6 +463,9 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 每日订单总结打印区（普通视图隐藏） -->
+<div id="daySummaryPrint"></div>
 
 <script>
 let shops = [];
@@ -1038,7 +1075,79 @@ function exportCSV(){
 function printReceipt(){
   // 不移动 DOM，避免 display:none 父容器导致内容不渲染；
   // 打印时仅让 #printArea 显示，其余元素 visibility:hidden。
+  doPrint('printing-receipt');
+}
+
+// 统一的打印入口：加 body class 区分打印模式，打印结束后清理
+function doPrint(cls){
+  const cleanup=()=>{
+    document.body.classList.remove(cls);
+    window.removeEventListener('afterprint', cleanup);
+  };
+  document.body.classList.add(cls);
+  window.addEventListener('afterprint', cleanup);
   window.print();
+}
+
+// 每日订单总结打印（按当前筛选日期，无则打印今日）
+function printDaySummary(){
+  const fd=document.getElementById('filterDate').value;
+  let label;
+  let dayOrders;
+  if(fd){
+    const [y,m,d]=fd.split('-');
+    label=`${y}年${m}月${d}日`;
+    dayOrders=orders.filter(o=>{
+      const dt=new Date(o.ts); const pad=n=>String(n).padStart(2,'0');
+      return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`===fd;
+    });
+  }else{
+    label='今日（'+new Date().toLocaleDateString('zh-CN')+'）';
+    dayOrders=orders.filter(o=>isToday(o.ts));
+  }
+  if(!dayOrders.length){ toast(fd?('「'+label+'」暂无订单'):'今日暂无订单'); return; }
+
+  const total=dayOrders.reduce((s,o)=>s+o.total,0);
+  const cnt=dayOrders.length;
+
+  // 商品销售汇总（按商品名聚合）
+  const agg={};
+  dayOrders.forEach(o=>o.items.forEach(i=>{
+    if(!agg[i.name]) agg[i.name]={qty:0,sub:0,cat:i.cat};
+    agg[i.name].qty+=i.qty; agg[i.name].sub+=i.sub;
+  }));
+  const rank=Object.entries(agg).sort((a,b)=>b[1].sub-a[1].sub);
+
+  const pad=n=>String(n).padStart(2,'0');
+  const rows=rank.map(([name,v],idx)=>
+    `<tr><td>${idx+1}</td><td>${name}${v.cat?' <small style="color:#999">['+v.cat+']</small>':''}</td><td style="text-align:right">${v.qty}</td><td style="text-align:right">¥${fmt(v.sub)}</td></tr>`
+  ).join('');
+  const details=dayOrders.map(o=>
+    `<div class="ds-ord"><span class="ds-ot">🕒 ${o.time}</span><span class="ds-on">单号 ${o.orderNo}</span><span class="ds-otot">¥${fmt(o.total)}</span></div>`
+  ).join('');
+
+  document.getElementById('daySummaryPrint').innerHTML=
+`<div class="ds">
+  <div class="ds-head">
+    <div class="ds-title">点单小程序 · 每日订单总结</div>
+    <div class="ds-date">${label}</div>
+  </div>
+  <div class="ds-stats">
+    <div class="ds-st"><div class="n">${cnt}</div><div class="l">订单数</div></div>
+    <div class="ds-st"><div class="n">¥${fmt(total)}</div><div class="l">营业额合计</div></div>
+    <div class="ds-st"><div class="n">${rank.length}</div><div class="l">商品种类</div></div>
+  </div>
+  <div class="ds-sec">📦 商品销售汇总（按销售额）</div>
+  <table class="ds-tb">
+    <thead><tr><th>#</th><th>商品</th><th style="text-align:right">销量</th><th style="text-align:right">金额</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="2" style="text-align:right;font-weight:700">合计</td><td style="text-align:right;font-weight:700">${rank.reduce((s,r)=>s+r[1].qty,0)}</td><td style="text-align:right;font-weight:700">¥${fmt(total)}</td></tr></tfoot>
+  </table>
+  <div class="ds-sec">📋 订单明细（${cnt} 单）</div>
+  ${details}
+  <div class="ds-foot">打印时间：${new Date().getFullYear()}年${pad(new Date().getMonth()+1)}月${pad(new Date().getDate())}日 ${pad(new Date().getHours())}:${pad(new Date().getMinutes())}</div>
+</div>`;
+  doPrint('printing-day-summary');
 }
 
 function exportOrder(){
